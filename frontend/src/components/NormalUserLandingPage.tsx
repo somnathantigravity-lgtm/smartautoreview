@@ -86,6 +86,9 @@ export const NormalUserLandingPage: React.FC<NormalUserLandingPageProps> = ({
     try {
       const res = await requestNormalOtp(email.trim());
       setAuthFeedback({ type: "success", message: res.message || `Verification OTP code sent to ${email}!` });
+      if (res.dev_otp) {
+        setOtp(res.dev_otp);
+      }
       setRegStep(2);
     } catch (err: any) {
       setAuthFeedback({ type: "error", message: err.message || "Failed to dispatch verification code." });

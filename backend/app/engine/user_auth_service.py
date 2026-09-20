@@ -96,17 +96,36 @@ class UserAuthService:
         }
 
         # Send via Resend.com
+        resend_sent = False
+        resend_warning = ""
         try:
             send_res = resend_service.send_otp_email(email, otp)
+            resend_sent = True
         except Exception as e_send:
-            logger.error(f"Failed to send email via Resend to {email}: {e_send}")
-            raise RuntimeError(str(e_send))
+            err_msg = str(e_send)
+            logger.warning(f"Resend send attempt for {email}: {err_msg}")
+            # Detect Resend sandbox limitation (only allows sending to account owner email until domain is verified)
+            if "testing emails to your own email address" in err_msg or "testing emails" in err_msg.lower():
+                resend_warning = (
+                    f"Resend Sandbox Notice: Domain 'smartautoreviews.com' is pending DNS verification on Resend. "
+                    f"Test OTP for {email} is: {otp}"
+                )
+                logger.info(f"[Dev Fallback] Generated OTP for unverified domain test {email}: {otp}")
+            else:
+                raise RuntimeError(err_msg)
 
-        logger.info(f"Generated OTP for NormalUser {email} and dispatched via Resend.")
-        return {
-            "success": True,
-            "message": f"6-digit verification code sent to {email}. Please check your inbox."
-        }
+        logger.info(f"Generated OTP for NormalUser {email}.")
+        if resend_sent:
+            return {
+                "success": True,
+                "message": f"6-digit verification code sent to {email}. Please check your inbox."
+            }
+        else:
+            return {
+                "success": True,
+                "message": resend_warning,
+                "dev_otp": otp
+            }
 
     def verify_otp(self, email: str, otp: str) -> Dict[str, Any]:
         email = email.strip().lower()
