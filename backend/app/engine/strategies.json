@@ -1,0 +1,5351 @@
+{
+  "active_strategy_id": "strat_intraday_alpha_pro",
+  "strategies": [
+    {
+      "id": "strat_intraday_alpha_pro",
+      "name": "Intraday Alpha & Pullback Pro",
+      "horizon": "INTRADAY",
+      "description": "High-probability intraday engine combining pre-market compression, VWAP anchor guardrails, 3-min volume surge, and pure 60% discrete scoring.",
+      "is_default": false,
+      "is_active": true,
+      "created_at": 1726690000,
+      "updated_at": 1789757900,
+      "target_pct": 2.2,
+      "stop_loss_pct": 1.1,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 20,
+        "exclude_illiquid": true,
+        "min_volume": 100000,
+        "volume_lookback_days": 20,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 10,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": false,
+        "max_debt_to_equity": 2,
+        "exclude_bankruptcy_distress": false,
+        "min_altman_z": 1.8,
+        "exclude_weak_piotroski": false,
+        "min_piotroski": 4,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 25,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 20,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": false,
+        "exclude_choppy_traps": true,
+        "market_regime_filter": {
+          "enabled": true,
+          "index_symbol": "NIFTY50",
+          "require_above_open": true,
+          "require_above_dma20": true,
+          "pause_on_heavy_red": true
+        },
+        "volatility_squeeze": {
+          "enabled": true,
+          "max_3d_range_pct": 3.0,
+          "volume_dryup_threshold": 0.8
+        }
+      },
+      "block_i_knockout_guardrails": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Intraday Knockout Guardrails (Pillar I)",
+        "description": "Hard binary vetoes protecting against buying overextended spikes far from VWAP, dry volume, or uncoiled bases.",
+        "max_vwap_distance_pct": 1.5,
+        "require_volume_expansion": true,
+        "require_coiling_base": true,
+        "min_win_rate_floor": 50,
+        "max_retrace_atr_ratio": 1.2,
+        "allowed_entry_days": [
+          "MON",
+          "TUE",
+          "WED",
+          "THU",
+          "FRI"
+        ],
+        "blocked_days_message": "",
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.5,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Current Setup Verification (Pillar C)",
+        "description": "7 live intraday momentum indicators scored (+3, +2, +1, 0, -1, -2, -3). 60% passing score cutoff.",
+        "min_current_score": 13,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "c_vwap_proximity",
+            "name": "Proximity to Value / VWAP Anchor",
+            "desc": "Strictly prevents buying overextended green candles. Ensures entry occurs within safe distance to the VWAP anchor.",
+            "category": "Value & Location",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vwap_opt_1",
+                "label": "Sweet Spot",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "c_vwap_opt_2",
+                "label": "Moderate Extension",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "c_vwap_opt_3",
+                "label": "Overextended",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_volume_surge",
+            "name": "3-Min Volume Expansion Surge",
+            "desc": "Demands an immediate influx of trading volume on the setup trigger candle compared to 20-candle average.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vol_opt_1",
+                "label": "Surge Spike",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_vol_opt_2",
+                "label": "Moderate Volume",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_vol_opt_3",
+                "label": "Low Volume",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_base_coiling",
+            "name": "Pre-Breakout Coiling Base Compression",
+            "desc": "Ensures price has consolidated tightly in a narrow base before attempting to break out.",
+            "category": "Price Structure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_base_opt_1",
+                "label": "Tight Base",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_base_opt_2",
+                "label": "Moderate Base",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_base_opt_3",
+                "label": "Loose Base",
+                "min_val": 2.5,
+                "max_val": 6.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_supertrend",
+            "name": "SuperTrend (7, 3) Bullish Direction",
+            "desc": "SuperTrend indicator confirms upward directional bias on 1-min and 5-min candles.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_st_opt_1",
+                "label": "Dual Bullish",
+                "state_val": "Bullish on 1m & 5m",
+                "score": 3
+              },
+              {
+                "id": "c_st_opt_2",
+                "label": "5m Only",
+                "state_val": "Bullish on 5m only",
+                "score": 1
+              },
+              {
+                "id": "c_st_opt_3",
+                "label": "Bearish / Neutral",
+                "state_val": "Bearish or Neutral",
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "c_rsi_sweet_spot",
+            "name": "RSI Momentum Sweet Spot (14)",
+            "desc": "RSI reflects bullish momentum without entering extreme blow-off overbought exhaustion.",
+            "category": "Momentum",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_rsi_opt_1",
+                "label": "Bullish Sweet Spot",
+                "min_val": 55.0,
+                "max_val": 68.0,
+                "score": 3
+              },
+              {
+                "id": "c_rsi_opt_2",
+                "label": "Moderate Momentum",
+                "min_val": 48.0,
+                "max_val": 55.0,
+                "score": 1
+              },
+              {
+                "id": "c_rsi_opt_3",
+                "label": "Exhausted / Bearish",
+                "min_val": 68.0,
+                "max_val": 100.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_opening_range_breakout_bias",
+            "name": "Opening Range Breakout (ORB) Bias",
+            "desc": "Position of price relative to the high of the first 15 or 30 minutes of trading.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_orb_opt_1",
+                "label": "Clean ORB Breakout",
+                "min_val": 0.3,
+                "max_val": 2.5,
+                "score": 3
+              },
+              {
+                "id": "c_orb_opt_2",
+                "label": "Testing Range High",
+                "min_val": 0.0,
+                "max_val": 0.3,
+                "score": 1
+              },
+              {
+                "id": "c_orb_opt_3",
+                "label": "Inside / Below Range",
+                "min_val": -5.0,
+                "max_val": 0.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_rvol_threshold",
+            "name": "Relative Volume (RVOL) Multiple",
+            "desc": "Session trading volume divided by expected time-of-day historical volume benchmark.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_rvol_opt_1",
+                "label": "Heavy Institutional RVOL",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_rvol_opt_2",
+                "label": "Moderate Activity",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_rvol_opt_3",
+                "label": "Sub-par RVOL",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_ema_alignment_stack",
+            "name": "EMA Trend Alignment (9 > 21 > 50)",
+            "desc": "Short, medium, and long exponential moving averages ordered sequentially upward.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_ema_opt_1",
+                "label": "Full Bullish Stack",
+                "state_val": "9 > 21 > 50 EMA Stacked",
+                "score": 3
+              },
+              {
+                "id": "c_ema_opt_2",
+                "label": "Partial Stack",
+                "state_val": "9 > 21 Above 50 EMA",
+                "score": 1
+              },
+              {
+                "id": "c_ema_opt_3",
+                "label": "Tangled / Bearish",
+                "state_val": "EMAs Tangled or Inverted",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_turnover_velocity",
+            "name": "Turnover Velocity per Minute",
+            "desc": "Rupee value transacted per minute showing sustained institutional money flow.",
+            "category": "Volume & Liquidity",
+            "unit": "Cr/m",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_turn_opt_1",
+                "label": "High Velocity",
+                "min_val": 0.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_turn_opt_2",
+                "label": "Moderate Velocity",
+                "min_val": 0.2,
+                "max_val": 0.5,
+                "score": 1
+              },
+              {
+                "id": "c_turn_opt_3",
+                "label": "Slow Flow",
+                "min_val": 0.0,
+                "max_val": 0.2,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_adx_trend_strength",
+            "name": "ADX Trend Strength (14)",
+            "desc": "Average Directional Index quantifying trend conviction regardless of direction.",
+            "category": "Price Structure",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_adx_opt_1",
+                "label": "Strong Trend",
+                "min_val": 25.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_adx_opt_2",
+                "label": "Developing Trend",
+                "min_val": 18.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "c_adx_opt_3",
+                "label": "Choppy Market",
+                "min_val": 0.0,
+                "max_val": 18.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_donchian_breakout_band",
+            "name": "Donchian 20-Period High Breakout",
+            "desc": "Proximity to the highest high of the previous 20 candles.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_don_opt_1",
+                "label": "New 20-High Break",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_don_opt_2",
+                "label": "Within 1% of High",
+                "min_val": -1.0,
+                "max_val": 0.0,
+                "score": 1
+              },
+              {
+                "id": "c_don_opt_3",
+                "label": "Well Below High",
+                "min_val": -10.0,
+                "max_val": -1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_hurst_exponent_persistence",
+            "name": "Hurst Exponent Trend Persistence",
+            "desc": "Statistical metric distinguishing genuine trending behavior (H > 0.55) from mean reversion.",
+            "category": "Volatility & Noise",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_hurst_opt_1",
+                "label": "Persistent Trend",
+                "min_val": 0.6,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_hurst_opt_2",
+                "label": "Mild Trend",
+                "min_val": 0.5,
+                "max_val": 0.6,
+                "score": 1
+              },
+              {
+                "id": "c_hurst_opt_3",
+                "label": "Mean Reverting",
+                "min_val": 0.0,
+                "max_val": 0.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_macd_histogram_momentum",
+            "name": "MACD Histogram Momentum Slope",
+            "desc": "Rate of change of the MACD histogram showing accelerating buying pressure.",
+            "category": "Momentum",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_macd_opt_1",
+                "label": "Accelerating Bullish",
+                "state_val": "Positive & Expanding",
+                "score": 3
+              },
+              {
+                "id": "c_macd_opt_2",
+                "label": "Positive Flattening",
+                "state_val": "Positive Flat",
+                "score": 1
+              },
+              {
+                "id": "c_macd_opt_3",
+                "label": "Negative / Contracting",
+                "state_val": "Negative",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_parabolic_sar_step",
+            "name": "Parabolic SAR (0.02, 0.2) Support",
+            "desc": "Trailing stop dots aligned comfortably beneath recent price action.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_sar_opt_1",
+                "label": "Dots Below Price",
+                "state_val": "Dots Below (Bullish)",
+                "score": 3
+              },
+              {
+                "id": "c_sar_opt_2",
+                "label": "Dots Flipping",
+                "state_val": "Dots Testing (Neutral)",
+                "score": 1
+              },
+              {
+                "id": "c_sar_opt_3",
+                "label": "Dots Above Price",
+                "state_val": "Dots Above (Bearish)",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_stochastic_rsi_cycle",
+            "name": "Stochastic RSI %K / %D Cross",
+            "desc": "Fast cyclical turning points confirming momentum cycle inflection.",
+            "category": "Momentum",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_stoch_opt_1",
+                "label": "Bullish Cycle Turn",
+                "min_val": 20.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_stoch_opt_2",
+                "label": "Extended Bullish",
+                "min_val": 60.0,
+                "max_val": 80.0,
+                "score": 1
+              },
+              {
+                "id": "c_stoch_opt_3",
+                "label": "Overbought Cycle",
+                "min_val": 80.0,
+                "max_val": 100.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_bollinger_band_pinch",
+            "name": "Bollinger Band Pinch Squeeze",
+            "desc": "Bandwidth narrowing indicating volatility contraction before breakout.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_bb_opt_1",
+                "label": "Extreme Squeeze",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_bb_opt_2",
+                "label": "Moderate Squeeze",
+                "min_val": 1.5,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "c_bb_opt_3",
+                "label": "Wide Bands",
+                "min_val": 3.0,
+                "max_val": 10.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_atr_expansion_ratio",
+            "name": "ATR Multiplier Expansion",
+            "desc": "Candle body expansion relative to recent Average True Range.",
+            "category": "Volatility & Noise",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_atr_opt_1",
+                "label": "Strong Expansion",
+                "min_val": 1.8,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_atr_opt_2",
+                "label": "Normal Expansion",
+                "min_val": 1.0,
+                "max_val": 1.8,
+                "score": 1
+              },
+              {
+                "id": "c_atr_opt_3",
+                "label": "Sub-ATR",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_range_compression_ratio",
+            "name": "Range Compression Ratio",
+            "desc": "Ratio of 3-candle range to 20-candle average demonstrating volatility squeeze.",
+            "category": "Price Structure",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_comp_opt_1",
+                "label": "Tight Compression",
+                "min_val": 0.1,
+                "max_val": 0.5,
+                "score": 3
+              },
+              {
+                "id": "c_comp_opt_2",
+                "label": "Average Range",
+                "min_val": 0.5,
+                "max_val": 0.8,
+                "score": 1
+              },
+              {
+                "id": "c_comp_opt_3",
+                "label": "Wide / Dispersed",
+                "min_val": 0.8,
+                "max_val": 2.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_tape_orderflow_imbalance",
+            "name": "Tape Orderflow Bid-Ask Imbalance",
+            "desc": "Ratio of aggressive market buyers absorbing resting asks.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_tape_opt_1",
+                "label": "Heavy Bid Dominance",
+                "min_val": 60.0,
+                "max_val": 95.0,
+                "score": 3
+              },
+              {
+                "id": "c_tape_opt_2",
+                "label": "Slight Bid Lead",
+                "min_val": 50.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "c_tape_opt_3",
+                "label": "Ask Heavy",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          }
+        ]
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Historical Backtest Verification (Pillar H)",
+        "description": "5 empirical statistical rules evaluated (+3 to -3). 60% passing score cutoff.",
+        "min_history_score": 9,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "h_win_rate",
+            "name": "45-Day Historical Breakout Win Rate",
+            "desc": "Requires empirical target hit success rate across past 20 similar setups.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_win_opt_1",
+                "label": "High Hit Rate",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_win_opt_2",
+                "label": "Moderate Win Rate",
+                "min_val": 55.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_win_opt_3",
+                "label": "Unreliable Hit Rate",
+                "min_val": 0.0,
+                "max_val": 55.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_max_pullback_atr",
+            "name": "Adverse Excursion Drawdown (Max Pullback)",
+            "desc": "Measures deepest dip relative to ATR before stock targets are achieved.",
+            "category": "Drawdown Risk",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_draw_opt_1",
+                "label": "Shallow Dip",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "h_draw_opt_2",
+                "label": "Normal Retrace",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "h_draw_opt_3",
+                "label": "Deep Shakeout",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_profit_factor",
+            "name": "Historical Profit Factor (Gross Wins / Losses)",
+            "desc": "Ratio of cumulative historical gains to cumulative losses across backtest window.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_pf_opt_1",
+                "label": "Exceptional Edge",
+                "min_val": 2.2,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_pf_opt_2",
+                "label": "Positive Edge",
+                "min_val": 1.4,
+                "max_val": 2.2,
+                "score": 1
+              },
+              {
+                "id": "h_pf_opt_3",
+                "label": "Sub-par Edge",
+                "min_val": 0.0,
+                "max_val": 1.4,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_morning_momentum_win_rate",
+            "name": "Morning Session Win Rate (9:15\u201311:00)",
+            "desc": "Historical performance specifically during the morning momentum drive window.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_morn_opt_1",
+                "label": "Strong Morning Edge",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_morn_opt_2",
+                "label": "Average Morning Edge",
+                "min_val": 50.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_morn_opt_3",
+                "label": "Morning Trap Stock",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_trap_failure_rate",
+            "name": "False Breakout Trap Rate",
+            "desc": "Frequency at which historical breakouts failed and reversed back through breakout price.",
+            "category": "Drawdown Risk",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_trap_opt_1",
+                "label": "Clean Follow-Through",
+                "min_val": 0.0,
+                "max_val": 15.0,
+                "score": 3
+              },
+              {
+                "id": "h_trap_opt_2",
+                "label": "Occasional Traps",
+                "min_val": 15.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "h_trap_opt_3",
+                "label": "Chronic Trap Stock",
+                "min_val": 25.0,
+                "max_val": 100.0,
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "h_volume_confluence_ratio",
+            "name": "Volume Confluence Reliability",
+            "desc": "Percentage of historical winning trades that had volume above 2x at entry.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_vc_opt_1",
+                "label": "High Confluence",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_vc_opt_2",
+                "label": "Moderate Confluence",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_vc_opt_3",
+                "label": "Unreliable Volume",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_hurst_backtest_persistence",
+            "name": "60-Day Hurst Trend Persistence",
+            "desc": "Average empirical Hurst exponent across past 60 trading days.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_hp_opt_1",
+                "label": "Strongly Persistent",
+                "min_val": 0.65,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "h_hp_opt_2",
+                "label": "Mildly Persistent",
+                "min_val": 0.55,
+                "max_val": 0.65,
+                "score": 1
+              },
+              {
+                "id": "h_hp_opt_3",
+                "label": "Mean-Reverting Noise",
+                "min_val": 0.0,
+                "max_val": 0.55,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_midday_chop_resilience",
+            "name": "Midday Chop Resilience (11:30\u201313:30)",
+            "desc": "Win rate when trades trigger during slower midday session.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_mid_opt_1",
+                "label": "Chop Resilient",
+                "min_val": 60.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_mid_opt_2",
+                "label": "Average Midday",
+                "min_val": 45.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "h_mid_opt_3",
+                "label": "Midday Bleeder",
+                "min_val": 0.0,
+                "max_val": 45.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_adr_realization_rate",
+            "name": "Average Daily Range (ADR) Capture Rate",
+            "desc": "Percentage of historical days where stock achieves full ADR move.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_adr_opt_1",
+                "label": "High Range Capture",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_adr_opt_2",
+                "label": "Average Capture",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_adr_opt_3",
+                "label": "Compressed Moves",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_volatility_adjusted_expectancy",
+            "name": "Volatility-Adjusted Edge Expectancy",
+            "desc": "Expected rupee value per trade normalized by historical volatility.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_exp_opt_1",
+                "label": "High Expectancy",
+                "min_val": 1.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "h_exp_opt_2",
+                "label": "Positive Expectancy",
+                "min_val": 0.8,
+                "max_val": 1.5,
+                "score": 1
+              },
+              {
+                "id": "h_exp_opt_3",
+                "label": "Negative Expectancy",
+                "min_val": -2.0,
+                "max_val": 0.8,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_avg_trade_gain_loss",
+            "name": "Average Trade Gain-to-Loss Multiple",
+            "desc": "Average gain on winners divided by average loss on stopped trades.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_gl_opt_1",
+                "label": "High Multiple",
+                "min_val": 2.0,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_gl_opt_2",
+                "label": "Acceptable Multiple",
+                "min_val": 1.3,
+                "max_val": 2.0,
+                "score": 1
+              },
+              {
+                "id": "h_gl_opt_3",
+                "label": "Poor Multiple",
+                "min_val": 0.0,
+                "max_val": 1.3,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_consecutive_losses",
+            "name": "Max Consecutive Loss Streak",
+            "desc": "Worst historical streak of consecutive stop-outs in backtest window.",
+            "category": "Drawdown Risk",
+            "unit": "trades",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_loss_opt_1",
+                "label": "Short Streak (1-2)",
+                "min_val": 1.0,
+                "max_val": 2.0,
+                "score": 3
+              },
+              {
+                "id": "h_loss_opt_2",
+                "label": "Average Streak (3)",
+                "min_val": 3.0,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "h_loss_opt_3",
+                "label": "Long Streak (>4)",
+                "min_val": 4.0,
+                "max_val": 10.0,
+                "score": -3
+              }
+            ]
+          }
+        ]
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Multi-Timeframe AI Vision Pattern Gate (Pillar A)",
+        "description": "Multi-angle visual inspection of 1m/5m/15m chart snapshots rejecting overhead resistance and upper wick traps.",
+        "min_vision_score": 60,
+        "veto_overhead_resistance": true,
+        "veto_overextended_wicks": true
+      },
+      "block_e_priority_rules": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Dynamic Priority Allocator",
+        "description": "Uncapped priority allocator. Evaluates and publishes all qualified setups without artificial daily caps.",
+        "max_recommendations": 999,
+        "priority_ranking_criterion": "CONFLUENCE_SCORE",
+        "session_quotas": {
+          "enabled": false
+        }
+      },
+      "block_f_execution_gate": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Live Broker Execution & Session Sizing",
+        "description": "Session timing gates (09:30-15:00) with strict 1:2 R:R. 09:15-09:30 is reserved for market opening range formation.",
+        "entry_start_time": "09:30",
+        "entry_cutoff_time": "15:00",
+        "auto_square_off_time": "15:15",
+        "max_risk_per_trade_pct": 1.0
+      }
+    },
+    {
+      "id": "strat_btst_quick_swing",
+      "name": "Very Short Term / BTST (1\u20132 Days)",
+      "horizon": "BTST_1_2_DAYS",
+      "description": "Buy high-momentum closing strength near Day-High for overnight continuation. Strictly blocks Thursday and Friday entries.",
+      "is_default": false,
+      "is_active": false,
+      "created_at": 1726690000,
+      "updated_at": 1789757900,
+      "target_pct": 3.5,
+      "stop_loss_pct": 1.5,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 50,
+        "exclude_illiquid": true,
+        "min_volume": 200000,
+        "volume_lookback_days": 10,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 20,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": false,
+        "max_debt_to_equity": 3,
+        "exclude_bankruptcy_distress": true,
+        "min_altman_z": 1.8,
+        "exclude_weak_piotroski": false,
+        "min_piotroski": 4,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 25,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 20,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": true,
+        "exclude_choppy_traps": true,
+        "market_regime_filter": {
+          "enabled": true,
+          "index_symbol": "NIFTY50",
+          "require_above_open": true,
+          "require_above_dma20": true,
+          "pause_on_heavy_red": true
+        }
+      },
+      "block_i_knockout_guardrails": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Knockout Guardrails & Expiry/Weekend Lock",
+        "description": "Strictly permits entries on Monday, Tuesday, and Wednesday. Blocks Thursday (F&O expiry) and Friday (weekend gap risk).",
+        "max_vwap_distance_pct": 2.0,
+        "require_volume_expansion": true,
+        "require_coiling_base": false,
+        "min_win_rate_floor": 55,
+        "max_retrace_atr_ratio": 1.0,
+        "allowed_entry_days": [
+          "MON",
+          "TUE",
+          "WED"
+        ],
+        "blocked_days_message": "Thursday (expiry volatility) and Friday (weekend gap risk) entries are strictly blocked.",
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": false,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": false,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Day-High Closing Setup (Pillar C)",
+        "description": "Evaluates closing drive strength, delivery volume %, and moving average alignment (60% cutoff).",
+        "min_current_score": 13,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "c_vwap_proximity",
+            "name": "Proximity to Value / VWAP Anchor",
+            "desc": "Strictly prevents buying overextended green candles. Ensures entry occurs within safe distance to the VWAP anchor.",
+            "category": "Value & Location",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vwap_opt_1",
+                "label": "Sweet Spot",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "c_vwap_opt_2",
+                "label": "Moderate Extension",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "c_vwap_opt_3",
+                "label": "Overextended",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_volume_surge",
+            "name": "3-Min Volume Expansion Surge",
+            "desc": "Demands an immediate influx of trading volume on the setup trigger candle compared to 20-candle average.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vol_opt_1",
+                "label": "Surge Spike",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_vol_opt_2",
+                "label": "Moderate Volume",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_vol_opt_3",
+                "label": "Low Volume",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_base_coiling",
+            "name": "Pre-Breakout Coiling Base Compression",
+            "desc": "Ensures price has consolidated tightly in a narrow base before attempting to break out.",
+            "category": "Price Structure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_base_opt_1",
+                "label": "Tight Base",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_base_opt_2",
+                "label": "Moderate Base",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_base_opt_3",
+                "label": "Loose Base",
+                "min_val": 2.5,
+                "max_val": 6.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_supertrend",
+            "name": "SuperTrend (7, 3) Bullish Direction",
+            "desc": "SuperTrend indicator confirms upward directional bias on 1-min and 5-min candles.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_st_opt_1",
+                "label": "Dual Bullish",
+                "state_val": "Bullish on 1m & 5m",
+                "score": 3
+              },
+              {
+                "id": "c_st_opt_2",
+                "label": "5m Only",
+                "state_val": "Bullish on 5m only",
+                "score": 1
+              },
+              {
+                "id": "c_st_opt_3",
+                "label": "Bearish / Neutral",
+                "state_val": "Bearish or Neutral",
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "c_rsi_sweet_spot",
+            "name": "RSI Momentum Sweet Spot (14)",
+            "desc": "RSI reflects bullish momentum without entering extreme blow-off overbought exhaustion.",
+            "category": "Momentum",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_rsi_opt_1",
+                "label": "Bullish Sweet Spot",
+                "min_val": 55.0,
+                "max_val": 68.0,
+                "score": 3
+              },
+              {
+                "id": "c_rsi_opt_2",
+                "label": "Moderate Momentum",
+                "min_val": 48.0,
+                "max_val": 55.0,
+                "score": 1
+              },
+              {
+                "id": "c_rsi_opt_3",
+                "label": "Exhausted / Bearish",
+                "min_val": 68.0,
+                "max_val": 100.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_opening_range_breakout_bias",
+            "name": "Opening Range Breakout (ORB) Bias",
+            "desc": "Position of price relative to the high of the first 15 or 30 minutes of trading.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_orb_opt_1",
+                "label": "Clean ORB Breakout",
+                "min_val": 0.3,
+                "max_val": 2.5,
+                "score": 3
+              },
+              {
+                "id": "c_orb_opt_2",
+                "label": "Testing Range High",
+                "min_val": 0.0,
+                "max_val": 0.3,
+                "score": 1
+              },
+              {
+                "id": "c_orb_opt_3",
+                "label": "Inside / Below Range",
+                "min_val": -5.0,
+                "max_val": 0.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_rvol_threshold",
+            "name": "Relative Volume (RVOL) Multiple",
+            "desc": "Session trading volume divided by expected time-of-day historical volume benchmark.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_rvol_opt_1",
+                "label": "Heavy Institutional RVOL",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_rvol_opt_2",
+                "label": "Moderate Activity",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_rvol_opt_3",
+                "label": "Sub-par RVOL",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_ema_alignment_stack",
+            "name": "EMA Trend Alignment (9 > 21 > 50)",
+            "desc": "Short, medium, and long exponential moving averages ordered sequentially upward.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_ema_opt_1",
+                "label": "Full Bullish Stack",
+                "state_val": "9 > 21 > 50 EMA Stacked",
+                "score": 3
+              },
+              {
+                "id": "c_ema_opt_2",
+                "label": "Partial Stack",
+                "state_val": "9 > 21 Above 50 EMA",
+                "score": 1
+              },
+              {
+                "id": "c_ema_opt_3",
+                "label": "Tangled / Bearish",
+                "state_val": "EMAs Tangled or Inverted",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_turnover_velocity",
+            "name": "Turnover Velocity per Minute",
+            "desc": "Rupee value transacted per minute showing sustained institutional money flow.",
+            "category": "Volume & Liquidity",
+            "unit": "Cr/m",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_turn_opt_1",
+                "label": "High Velocity",
+                "min_val": 0.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_turn_opt_2",
+                "label": "Moderate Velocity",
+                "min_val": 0.2,
+                "max_val": 0.5,
+                "score": 1
+              },
+              {
+                "id": "c_turn_opt_3",
+                "label": "Slow Flow",
+                "min_val": 0.0,
+                "max_val": 0.2,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_adx_trend_strength",
+            "name": "ADX Trend Strength (14)",
+            "desc": "Average Directional Index quantifying trend conviction regardless of direction.",
+            "category": "Price Structure",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_adx_opt_1",
+                "label": "Strong Trend",
+                "min_val": 25.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_adx_opt_2",
+                "label": "Developing Trend",
+                "min_val": 18.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "c_adx_opt_3",
+                "label": "Choppy Market",
+                "min_val": 0.0,
+                "max_val": 18.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_donchian_breakout_band",
+            "name": "Donchian 20-Period High Breakout",
+            "desc": "Proximity to the highest high of the previous 20 candles.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_don_opt_1",
+                "label": "New 20-High Break",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_don_opt_2",
+                "label": "Within 1% of High",
+                "min_val": -1.0,
+                "max_val": 0.0,
+                "score": 1
+              },
+              {
+                "id": "c_don_opt_3",
+                "label": "Well Below High",
+                "min_val": -10.0,
+                "max_val": -1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_hurst_exponent_persistence",
+            "name": "Hurst Exponent Trend Persistence",
+            "desc": "Statistical metric distinguishing genuine trending behavior (H > 0.55) from mean reversion.",
+            "category": "Volatility & Noise",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_hurst_opt_1",
+                "label": "Persistent Trend",
+                "min_val": 0.6,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_hurst_opt_2",
+                "label": "Mild Trend",
+                "min_val": 0.5,
+                "max_val": 0.6,
+                "score": 1
+              },
+              {
+                "id": "c_hurst_opt_3",
+                "label": "Mean Reverting",
+                "min_val": 0.0,
+                "max_val": 0.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_macd_histogram_momentum",
+            "name": "MACD Histogram Momentum Slope",
+            "desc": "Rate of change of the MACD histogram showing accelerating buying pressure.",
+            "category": "Momentum",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_macd_opt_1",
+                "label": "Accelerating Bullish",
+                "state_val": "Positive & Expanding",
+                "score": 3
+              },
+              {
+                "id": "c_macd_opt_2",
+                "label": "Positive Flattening",
+                "state_val": "Positive Flat",
+                "score": 1
+              },
+              {
+                "id": "c_macd_opt_3",
+                "label": "Negative / Contracting",
+                "state_val": "Negative",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_parabolic_sar_step",
+            "name": "Parabolic SAR (0.02, 0.2) Support",
+            "desc": "Trailing stop dots aligned comfortably beneath recent price action.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_sar_opt_1",
+                "label": "Dots Below Price",
+                "state_val": "Dots Below (Bullish)",
+                "score": 3
+              },
+              {
+                "id": "c_sar_opt_2",
+                "label": "Dots Flipping",
+                "state_val": "Dots Testing (Neutral)",
+                "score": 1
+              },
+              {
+                "id": "c_sar_opt_3",
+                "label": "Dots Above Price",
+                "state_val": "Dots Above (Bearish)",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_stochastic_rsi_cycle",
+            "name": "Stochastic RSI %K / %D Cross",
+            "desc": "Fast cyclical turning points confirming momentum cycle inflection.",
+            "category": "Momentum",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_stoch_opt_1",
+                "label": "Bullish Cycle Turn",
+                "min_val": 20.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_stoch_opt_2",
+                "label": "Extended Bullish",
+                "min_val": 60.0,
+                "max_val": 80.0,
+                "score": 1
+              },
+              {
+                "id": "c_stoch_opt_3",
+                "label": "Overbought Cycle",
+                "min_val": 80.0,
+                "max_val": 100.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_bollinger_band_pinch",
+            "name": "Bollinger Band Pinch Squeeze",
+            "desc": "Bandwidth narrowing indicating volatility contraction before breakout.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_bb_opt_1",
+                "label": "Extreme Squeeze",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_bb_opt_2",
+                "label": "Moderate Squeeze",
+                "min_val": 1.5,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "c_bb_opt_3",
+                "label": "Wide Bands",
+                "min_val": 3.0,
+                "max_val": 10.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_atr_expansion_ratio",
+            "name": "ATR Multiplier Expansion",
+            "desc": "Candle body expansion relative to recent Average True Range.",
+            "category": "Volatility & Noise",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_atr_opt_1",
+                "label": "Strong Expansion",
+                "min_val": 1.8,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_atr_opt_2",
+                "label": "Normal Expansion",
+                "min_val": 1.0,
+                "max_val": 1.8,
+                "score": 1
+              },
+              {
+                "id": "c_atr_opt_3",
+                "label": "Sub-ATR",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_range_compression_ratio",
+            "name": "Range Compression Ratio",
+            "desc": "Ratio of 3-candle range to 20-candle average demonstrating volatility squeeze.",
+            "category": "Price Structure",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_comp_opt_1",
+                "label": "Tight Compression",
+                "min_val": 0.1,
+                "max_val": 0.5,
+                "score": 3
+              },
+              {
+                "id": "c_comp_opt_2",
+                "label": "Average Range",
+                "min_val": 0.5,
+                "max_val": 0.8,
+                "score": 1
+              },
+              {
+                "id": "c_comp_opt_3",
+                "label": "Wide / Dispersed",
+                "min_val": 0.8,
+                "max_val": 2.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_tape_orderflow_imbalance",
+            "name": "Tape Orderflow Bid-Ask Imbalance",
+            "desc": "Ratio of aggressive market buyers absorbing resting asks.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_tape_opt_1",
+                "label": "Heavy Bid Dominance",
+                "min_val": 60.0,
+                "max_val": 95.0,
+                "score": 3
+              },
+              {
+                "id": "c_tape_opt_2",
+                "label": "Slight Bid Lead",
+                "min_val": 50.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "c_tape_opt_3",
+                "label": "Ask Heavy",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          }
+        ]
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Overnight Edge Backtest (Pillar H)",
+        "description": "Statistical probability of next-day gap-up and follow-through (60% cutoff).",
+        "min_history_score": 8,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "h_win_rate",
+            "name": "45-Day Historical Breakout Win Rate",
+            "desc": "Requires empirical target hit success rate across past 20 similar setups.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_win_opt_1",
+                "label": "High Hit Rate",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_win_opt_2",
+                "label": "Moderate Win Rate",
+                "min_val": 55.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_win_opt_3",
+                "label": "Unreliable Hit Rate",
+                "min_val": 0.0,
+                "max_val": 55.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_max_pullback_atr",
+            "name": "Adverse Excursion Drawdown (Max Pullback)",
+            "desc": "Measures deepest dip relative to ATR before stock targets are achieved.",
+            "category": "Drawdown Risk",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_draw_opt_1",
+                "label": "Shallow Dip",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "h_draw_opt_2",
+                "label": "Normal Retrace",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "h_draw_opt_3",
+                "label": "Deep Shakeout",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_profit_factor",
+            "name": "Historical Profit Factor (Gross Wins / Losses)",
+            "desc": "Ratio of cumulative historical gains to cumulative losses across backtest window.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_pf_opt_1",
+                "label": "Exceptional Edge",
+                "min_val": 2.2,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_pf_opt_2",
+                "label": "Positive Edge",
+                "min_val": 1.4,
+                "max_val": 2.2,
+                "score": 1
+              },
+              {
+                "id": "h_pf_opt_3",
+                "label": "Sub-par Edge",
+                "min_val": 0.0,
+                "max_val": 1.4,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_morning_momentum_win_rate",
+            "name": "Morning Session Win Rate (9:15\u201311:00)",
+            "desc": "Historical performance specifically during the morning momentum drive window.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_morn_opt_1",
+                "label": "Strong Morning Edge",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_morn_opt_2",
+                "label": "Average Morning Edge",
+                "min_val": 50.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_morn_opt_3",
+                "label": "Morning Trap Stock",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_trap_failure_rate",
+            "name": "False Breakout Trap Rate",
+            "desc": "Frequency at which historical breakouts failed and reversed back through breakout price.",
+            "category": "Drawdown Risk",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_trap_opt_1",
+                "label": "Clean Follow-Through",
+                "min_val": 0.0,
+                "max_val": 15.0,
+                "score": 3
+              },
+              {
+                "id": "h_trap_opt_2",
+                "label": "Occasional Traps",
+                "min_val": 15.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "h_trap_opt_3",
+                "label": "Chronic Trap Stock",
+                "min_val": 25.0,
+                "max_val": 100.0,
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "h_volume_confluence_ratio",
+            "name": "Volume Confluence Reliability",
+            "desc": "Percentage of historical winning trades that had volume above 2x at entry.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_vc_opt_1",
+                "label": "High Confluence",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_vc_opt_2",
+                "label": "Moderate Confluence",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_vc_opt_3",
+                "label": "Unreliable Volume",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_hurst_backtest_persistence",
+            "name": "60-Day Hurst Trend Persistence",
+            "desc": "Average empirical Hurst exponent across past 60 trading days.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_hp_opt_1",
+                "label": "Strongly Persistent",
+                "min_val": 0.65,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "h_hp_opt_2",
+                "label": "Mildly Persistent",
+                "min_val": 0.55,
+                "max_val": 0.65,
+                "score": 1
+              },
+              {
+                "id": "h_hp_opt_3",
+                "label": "Mean-Reverting Noise",
+                "min_val": 0.0,
+                "max_val": 0.55,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_midday_chop_resilience",
+            "name": "Midday Chop Resilience (11:30\u201313:30)",
+            "desc": "Win rate when trades trigger during slower midday session.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_mid_opt_1",
+                "label": "Chop Resilient",
+                "min_val": 60.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_mid_opt_2",
+                "label": "Average Midday",
+                "min_val": 45.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "h_mid_opt_3",
+                "label": "Midday Bleeder",
+                "min_val": 0.0,
+                "max_val": 45.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_adr_realization_rate",
+            "name": "Average Daily Range (ADR) Capture Rate",
+            "desc": "Percentage of historical days where stock achieves full ADR move.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_adr_opt_1",
+                "label": "High Range Capture",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_adr_opt_2",
+                "label": "Average Capture",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_adr_opt_3",
+                "label": "Compressed Moves",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_volatility_adjusted_expectancy",
+            "name": "Volatility-Adjusted Edge Expectancy",
+            "desc": "Expected rupee value per trade normalized by historical volatility.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_exp_opt_1",
+                "label": "High Expectancy",
+                "min_val": 1.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "h_exp_opt_2",
+                "label": "Positive Expectancy",
+                "min_val": 0.8,
+                "max_val": 1.5,
+                "score": 1
+              },
+              {
+                "id": "h_exp_opt_3",
+                "label": "Negative Expectancy",
+                "min_val": -2.0,
+                "max_val": 0.8,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_avg_trade_gain_loss",
+            "name": "Average Trade Gain-to-Loss Multiple",
+            "desc": "Average gain on winners divided by average loss on stopped trades.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_gl_opt_1",
+                "label": "High Multiple",
+                "min_val": 2.0,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_gl_opt_2",
+                "label": "Acceptable Multiple",
+                "min_val": 1.3,
+                "max_val": 2.0,
+                "score": 1
+              },
+              {
+                "id": "h_gl_opt_3",
+                "label": "Poor Multiple",
+                "min_val": 0.0,
+                "max_val": 1.3,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_consecutive_losses",
+            "name": "Max Consecutive Loss Streak",
+            "desc": "Worst historical streak of consecutive stop-outs in backtest window.",
+            "category": "Drawdown Risk",
+            "unit": "trades",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_loss_opt_1",
+                "label": "Short Streak (1-2)",
+                "min_val": 1.0,
+                "max_val": 2.0,
+                "score": 3
+              },
+              {
+                "id": "h_loss_opt_2",
+                "label": "Average Streak (3)",
+                "min_val": 3.0,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "h_loss_opt_3",
+                "label": "Long Streak (>4)",
+                "min_val": 4.0,
+                "max_val": 10.0,
+                "score": -3
+              }
+            ]
+          }
+        ]
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Daily Candle Optical Inspection (Pillar A)",
+        "description": "Validates full-bodied bullish daily closing candle without upper rejection wicks.",
+        "min_vision_score": 70,
+        "veto_overhead_resistance": true,
+        "veto_overextended_wicks": true
+      },
+      "block_e_priority_rules": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Evening Priority Allocator",
+        "description": "Selects top 1 or 2 highest-conviction closing momentum candidates.",
+        "max_recommendations": 2,
+        "priority_ranking_criterion": "RISE_DIP_RATIO"
+      },
+      "block_f_execution_gate": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Execution Gate (14:45\u201315:15 IST)",
+        "description": "Enforces execution window between 14:45 and 15:15 IST.",
+        "entry_start_time": "14:45",
+        "entry_cutoff_time": "15:15",
+        "auto_square_off_time": "15:20",
+        "max_risk_per_trade_pct": 1.5
+      }
+    },
+    {
+      "id": "strat_short_term_swing",
+      "name": "Short-Term Swing (1 Wk \u2013 3 Mo)",
+      "horizon": "SWING_1W_3M",
+      "description": "Stage 2 base breakout engine capturing multi-week trend waves in sector leaders near 52-week highs.",
+      "is_default": false,
+      "is_active": false,
+      "created_at": 1726690000,
+      "updated_at": 1789757900,
+      "target_pct": 12.0,
+      "stop_loss_pct": 5.0,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 50,
+        "exclude_illiquid": true,
+        "min_volume": 100000,
+        "volume_lookback_days": 20,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 15,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": true,
+        "max_debt_to_equity": 2.5,
+        "exclude_bankruptcy_distress": true,
+        "min_altman_z": 1.8,
+        "exclude_weak_piotroski": true,
+        "min_piotroski": 5,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 25,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 25,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": true,
+        "exclude_choppy_traps": true,
+        "market_regime_filter": {
+          "enabled": true,
+          "index_symbol": "NIFTY50",
+          "require_above_open": false,
+          "require_above_dma20": true,
+          "pause_on_heavy_red": true
+        }
+      },
+      "block_i_knockout_guardrails": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Swing Trend Guardrails (Pillar I)",
+        "description": "Enforces pre-breakout consolidation base, trend persistence, and risk limits.",
+        "max_vwap_distance_pct": 3.5,
+        "require_volume_expansion": false,
+        "require_coiling_base": true,
+        "min_win_rate_floor": 55,
+        "max_retrace_atr_ratio": 1.5,
+        "allowed_entry_days": [
+          "MON",
+          "TUE",
+          "WED",
+          "THU",
+          "FRI"
+        ],
+        "blocked_days_message": "",
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Daily & Weekly Base Setup (Pillar C)",
+        "description": "Stage 2 consolidation breakouts, 52W high proximity, and EMA alignment (60% cutoff).",
+        "min_current_score": 13,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "c_vwap_proximity",
+            "name": "Proximity to Value / VWAP Anchor",
+            "desc": "Strictly prevents buying overextended green candles. Ensures entry occurs within safe distance to the VWAP anchor.",
+            "category": "Value & Location",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_vwap_opt_1",
+                "label": "Sweet Spot",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "c_vwap_opt_2",
+                "label": "Moderate Extension",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "c_vwap_opt_3",
+                "label": "Overextended",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_volume_surge",
+            "name": "3-Min Volume Expansion Surge",
+            "desc": "Demands an immediate influx of trading volume on the setup trigger candle compared to 20-candle average.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vol_opt_1",
+                "label": "Surge Spike",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_vol_opt_2",
+                "label": "Moderate Volume",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_vol_opt_3",
+                "label": "Low Volume",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_base_coiling",
+            "name": "Pre-Breakout Coiling Base Compression",
+            "desc": "Ensures price has consolidated tightly in a narrow base before attempting to break out.",
+            "category": "Price Structure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_base_opt_1",
+                "label": "Tight Base",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_base_opt_2",
+                "label": "Moderate Base",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_base_opt_3",
+                "label": "Loose Base",
+                "min_val": 2.5,
+                "max_val": 6.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_supertrend",
+            "name": "SuperTrend (7, 3) Bullish Direction",
+            "desc": "SuperTrend indicator confirms upward directional bias on 1-min and 5-min candles.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_st_opt_1",
+                "label": "Dual Bullish",
+                "state_val": "Bullish on 1m & 5m",
+                "score": 3
+              },
+              {
+                "id": "c_st_opt_2",
+                "label": "5m Only",
+                "state_val": "Bullish on 5m only",
+                "score": 1
+              },
+              {
+                "id": "c_st_opt_3",
+                "label": "Bearish / Neutral",
+                "state_val": "Bearish or Neutral",
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "c_rsi_sweet_spot",
+            "name": "RSI Momentum Sweet Spot (14)",
+            "desc": "RSI reflects bullish momentum without entering extreme blow-off overbought exhaustion.",
+            "category": "Momentum",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_rsi_opt_1",
+                "label": "Bullish Sweet Spot",
+                "min_val": 55.0,
+                "max_val": 68.0,
+                "score": 3
+              },
+              {
+                "id": "c_rsi_opt_2",
+                "label": "Moderate Momentum",
+                "min_val": 48.0,
+                "max_val": 55.0,
+                "score": 1
+              },
+              {
+                "id": "c_rsi_opt_3",
+                "label": "Exhausted / Bearish",
+                "min_val": 68.0,
+                "max_val": 100.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_opening_range_breakout_bias",
+            "name": "Opening Range Breakout (ORB) Bias",
+            "desc": "Position of price relative to the high of the first 15 or 30 minutes of trading.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_orb_opt_1",
+                "label": "Clean ORB Breakout",
+                "min_val": 0.3,
+                "max_val": 2.5,
+                "score": 3
+              },
+              {
+                "id": "c_orb_opt_2",
+                "label": "Testing Range High",
+                "min_val": 0.0,
+                "max_val": 0.3,
+                "score": 1
+              },
+              {
+                "id": "c_orb_opt_3",
+                "label": "Inside / Below Range",
+                "min_val": -5.0,
+                "max_val": 0.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_rvol_threshold",
+            "name": "Relative Volume (RVOL) Multiple",
+            "desc": "Session trading volume divided by expected time-of-day historical volume benchmark.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_rvol_opt_1",
+                "label": "Heavy Institutional RVOL",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_rvol_opt_2",
+                "label": "Moderate Activity",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_rvol_opt_3",
+                "label": "Sub-par RVOL",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_ema_alignment_stack",
+            "name": "EMA Trend Alignment (9 > 21 > 50)",
+            "desc": "Short, medium, and long exponential moving averages ordered sequentially upward.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_ema_opt_1",
+                "label": "Full Bullish Stack",
+                "state_val": "9 > 21 > 50 EMA Stacked",
+                "score": 3
+              },
+              {
+                "id": "c_ema_opt_2",
+                "label": "Partial Stack",
+                "state_val": "9 > 21 Above 50 EMA",
+                "score": 1
+              },
+              {
+                "id": "c_ema_opt_3",
+                "label": "Tangled / Bearish",
+                "state_val": "EMAs Tangled or Inverted",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_turnover_velocity",
+            "name": "Turnover Velocity per Minute",
+            "desc": "Rupee value transacted per minute showing sustained institutional money flow.",
+            "category": "Volume & Liquidity",
+            "unit": "Cr/m",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_turn_opt_1",
+                "label": "High Velocity",
+                "min_val": 0.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_turn_opt_2",
+                "label": "Moderate Velocity",
+                "min_val": 0.2,
+                "max_val": 0.5,
+                "score": 1
+              },
+              {
+                "id": "c_turn_opt_3",
+                "label": "Slow Flow",
+                "min_val": 0.0,
+                "max_val": 0.2,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_adx_trend_strength",
+            "name": "ADX Trend Strength (14)",
+            "desc": "Average Directional Index quantifying trend conviction regardless of direction.",
+            "category": "Price Structure",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_adx_opt_1",
+                "label": "Strong Trend",
+                "min_val": 25.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_adx_opt_2",
+                "label": "Developing Trend",
+                "min_val": 18.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "c_adx_opt_3",
+                "label": "Choppy Market",
+                "min_val": 0.0,
+                "max_val": 18.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_donchian_breakout_band",
+            "name": "Donchian 20-Period High Breakout",
+            "desc": "Proximity to the highest high of the previous 20 candles.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_don_opt_1",
+                "label": "New 20-High Break",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_don_opt_2",
+                "label": "Within 1% of High",
+                "min_val": -1.0,
+                "max_val": 0.0,
+                "score": 1
+              },
+              {
+                "id": "c_don_opt_3",
+                "label": "Well Below High",
+                "min_val": -10.0,
+                "max_val": -1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_hurst_exponent_persistence",
+            "name": "Hurst Exponent Trend Persistence",
+            "desc": "Statistical metric distinguishing genuine trending behavior (H > 0.55) from mean reversion.",
+            "category": "Volatility & Noise",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_hurst_opt_1",
+                "label": "Persistent Trend",
+                "min_val": 0.6,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_hurst_opt_2",
+                "label": "Mild Trend",
+                "min_val": 0.5,
+                "max_val": 0.6,
+                "score": 1
+              },
+              {
+                "id": "c_hurst_opt_3",
+                "label": "Mean Reverting",
+                "min_val": 0.0,
+                "max_val": 0.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_macd_histogram_momentum",
+            "name": "MACD Histogram Momentum Slope",
+            "desc": "Rate of change of the MACD histogram showing accelerating buying pressure.",
+            "category": "Momentum",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_macd_opt_1",
+                "label": "Accelerating Bullish",
+                "state_val": "Positive & Expanding",
+                "score": 3
+              },
+              {
+                "id": "c_macd_opt_2",
+                "label": "Positive Flattening",
+                "state_val": "Positive Flat",
+                "score": 1
+              },
+              {
+                "id": "c_macd_opt_3",
+                "label": "Negative / Contracting",
+                "state_val": "Negative",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_parabolic_sar_step",
+            "name": "Parabolic SAR (0.02, 0.2) Support",
+            "desc": "Trailing stop dots aligned comfortably beneath recent price action.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_sar_opt_1",
+                "label": "Dots Below Price",
+                "state_val": "Dots Below (Bullish)",
+                "score": 3
+              },
+              {
+                "id": "c_sar_opt_2",
+                "label": "Dots Flipping",
+                "state_val": "Dots Testing (Neutral)",
+                "score": 1
+              },
+              {
+                "id": "c_sar_opt_3",
+                "label": "Dots Above Price",
+                "state_val": "Dots Above (Bearish)",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_stochastic_rsi_cycle",
+            "name": "Stochastic RSI %K / %D Cross",
+            "desc": "Fast cyclical turning points confirming momentum cycle inflection.",
+            "category": "Momentum",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_stoch_opt_1",
+                "label": "Bullish Cycle Turn",
+                "min_val": 20.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_stoch_opt_2",
+                "label": "Extended Bullish",
+                "min_val": 60.0,
+                "max_val": 80.0,
+                "score": 1
+              },
+              {
+                "id": "c_stoch_opt_3",
+                "label": "Overbought Cycle",
+                "min_val": 80.0,
+                "max_val": 100.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_bollinger_band_pinch",
+            "name": "Bollinger Band Pinch Squeeze",
+            "desc": "Bandwidth narrowing indicating volatility contraction before breakout.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_bb_opt_1",
+                "label": "Extreme Squeeze",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_bb_opt_2",
+                "label": "Moderate Squeeze",
+                "min_val": 1.5,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "c_bb_opt_3",
+                "label": "Wide Bands",
+                "min_val": 3.0,
+                "max_val": 10.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_atr_expansion_ratio",
+            "name": "ATR Multiplier Expansion",
+            "desc": "Candle body expansion relative to recent Average True Range.",
+            "category": "Volatility & Noise",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_atr_opt_1",
+                "label": "Strong Expansion",
+                "min_val": 1.8,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_atr_opt_2",
+                "label": "Normal Expansion",
+                "min_val": 1.0,
+                "max_val": 1.8,
+                "score": 1
+              },
+              {
+                "id": "c_atr_opt_3",
+                "label": "Sub-ATR",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_range_compression_ratio",
+            "name": "Range Compression Ratio",
+            "desc": "Ratio of 3-candle range to 20-candle average demonstrating volatility squeeze.",
+            "category": "Price Structure",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_comp_opt_1",
+                "label": "Tight Compression",
+                "min_val": 0.1,
+                "max_val": 0.5,
+                "score": 3
+              },
+              {
+                "id": "c_comp_opt_2",
+                "label": "Average Range",
+                "min_val": 0.5,
+                "max_val": 0.8,
+                "score": 1
+              },
+              {
+                "id": "c_comp_opt_3",
+                "label": "Wide / Dispersed",
+                "min_val": 0.8,
+                "max_val": 2.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_tape_orderflow_imbalance",
+            "name": "Tape Orderflow Bid-Ask Imbalance",
+            "desc": "Ratio of aggressive market buyers absorbing resting asks.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_tape_opt_1",
+                "label": "Heavy Bid Dominance",
+                "min_val": 60.0,
+                "max_val": 95.0,
+                "score": 3
+              },
+              {
+                "id": "c_tape_opt_2",
+                "label": "Slight Bid Lead",
+                "min_val": 50.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "c_tape_opt_3",
+                "label": "Ask Heavy",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          }
+        ]
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Multi-Week Statistical Edge (Pillar H)",
+        "description": "Hurst persistence, multi-week win rate, and profit factor edge (60% cutoff).",
+        "min_history_score": 9,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "h_win_rate",
+            "name": "45-Day Historical Breakout Win Rate",
+            "desc": "Requires empirical target hit success rate across past 20 similar setups.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_win_opt_1",
+                "label": "High Hit Rate",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_win_opt_2",
+                "label": "Moderate Win Rate",
+                "min_val": 55.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_win_opt_3",
+                "label": "Unreliable Hit Rate",
+                "min_val": 0.0,
+                "max_val": 55.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_max_pullback_atr",
+            "name": "Adverse Excursion Drawdown (Max Pullback)",
+            "desc": "Measures deepest dip relative to ATR before stock targets are achieved.",
+            "category": "Drawdown Risk",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_draw_opt_1",
+                "label": "Shallow Dip",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "h_draw_opt_2",
+                "label": "Normal Retrace",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "h_draw_opt_3",
+                "label": "Deep Shakeout",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_profit_factor",
+            "name": "Historical Profit Factor (Gross Wins / Losses)",
+            "desc": "Ratio of cumulative historical gains to cumulative losses across backtest window.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_pf_opt_1",
+                "label": "Exceptional Edge",
+                "min_val": 2.2,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_pf_opt_2",
+                "label": "Positive Edge",
+                "min_val": 1.4,
+                "max_val": 2.2,
+                "score": 1
+              },
+              {
+                "id": "h_pf_opt_3",
+                "label": "Sub-par Edge",
+                "min_val": 0.0,
+                "max_val": 1.4,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_morning_momentum_win_rate",
+            "name": "Morning Session Win Rate (9:15\u201311:00)",
+            "desc": "Historical performance specifically during the morning momentum drive window.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_morn_opt_1",
+                "label": "Strong Morning Edge",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_morn_opt_2",
+                "label": "Average Morning Edge",
+                "min_val": 50.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_morn_opt_3",
+                "label": "Morning Trap Stock",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_trap_failure_rate",
+            "name": "False Breakout Trap Rate",
+            "desc": "Frequency at which historical breakouts failed and reversed back through breakout price.",
+            "category": "Drawdown Risk",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_trap_opt_1",
+                "label": "Clean Follow-Through",
+                "min_val": 0.0,
+                "max_val": 15.0,
+                "score": 3
+              },
+              {
+                "id": "h_trap_opt_2",
+                "label": "Occasional Traps",
+                "min_val": 15.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "h_trap_opt_3",
+                "label": "Chronic Trap Stock",
+                "min_val": 25.0,
+                "max_val": 100.0,
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "h_volume_confluence_ratio",
+            "name": "Volume Confluence Reliability",
+            "desc": "Percentage of historical winning trades that had volume above 2x at entry.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_vc_opt_1",
+                "label": "High Confluence",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_vc_opt_2",
+                "label": "Moderate Confluence",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_vc_opt_3",
+                "label": "Unreliable Volume",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_hurst_backtest_persistence",
+            "name": "60-Day Hurst Trend Persistence",
+            "desc": "Average empirical Hurst exponent across past 60 trading days.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_hp_opt_1",
+                "label": "Strongly Persistent",
+                "min_val": 0.65,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "h_hp_opt_2",
+                "label": "Mildly Persistent",
+                "min_val": 0.55,
+                "max_val": 0.65,
+                "score": 1
+              },
+              {
+                "id": "h_hp_opt_3",
+                "label": "Mean-Reverting Noise",
+                "min_val": 0.0,
+                "max_val": 0.55,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_midday_chop_resilience",
+            "name": "Midday Chop Resilience (11:30\u201313:30)",
+            "desc": "Win rate when trades trigger during slower midday session.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_mid_opt_1",
+                "label": "Chop Resilient",
+                "min_val": 60.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_mid_opt_2",
+                "label": "Average Midday",
+                "min_val": 45.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "h_mid_opt_3",
+                "label": "Midday Bleeder",
+                "min_val": 0.0,
+                "max_val": 45.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_adr_realization_rate",
+            "name": "Average Daily Range (ADR) Capture Rate",
+            "desc": "Percentage of historical days where stock achieves full ADR move.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_adr_opt_1",
+                "label": "High Range Capture",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_adr_opt_2",
+                "label": "Average Capture",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_adr_opt_3",
+                "label": "Compressed Moves",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_volatility_adjusted_expectancy",
+            "name": "Volatility-Adjusted Edge Expectancy",
+            "desc": "Expected rupee value per trade normalized by historical volatility.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_exp_opt_1",
+                "label": "High Expectancy",
+                "min_val": 1.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "h_exp_opt_2",
+                "label": "Positive Expectancy",
+                "min_val": 0.8,
+                "max_val": 1.5,
+                "score": 1
+              },
+              {
+                "id": "h_exp_opt_3",
+                "label": "Negative Expectancy",
+                "min_val": -2.0,
+                "max_val": 0.8,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_avg_trade_gain_loss",
+            "name": "Average Trade Gain-to-Loss Multiple",
+            "desc": "Average gain on winners divided by average loss on stopped trades.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_gl_opt_1",
+                "label": "High Multiple",
+                "min_val": 2.0,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_gl_opt_2",
+                "label": "Acceptable Multiple",
+                "min_val": 1.3,
+                "max_val": 2.0,
+                "score": 1
+              },
+              {
+                "id": "h_gl_opt_3",
+                "label": "Poor Multiple",
+                "min_val": 0.0,
+                "max_val": 1.3,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_consecutive_losses",
+            "name": "Max Consecutive Loss Streak",
+            "desc": "Worst historical streak of consecutive stop-outs in backtest window.",
+            "category": "Drawdown Risk",
+            "unit": "trades",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_loss_opt_1",
+                "label": "Short Streak (1-2)",
+                "min_val": 1.0,
+                "max_val": 2.0,
+                "score": 3
+              },
+              {
+                "id": "h_loss_opt_2",
+                "label": "Average Streak (3)",
+                "min_val": 3.0,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "h_loss_opt_3",
+                "label": "Long Streak (>4)",
+                "min_val": 4.0,
+                "max_val": 10.0,
+                "score": -3
+              }
+            ]
+          }
+        ]
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Weekly Base Optical Verification (Pillar A)",
+        "description": "Visual confirmation of clean multi-week Stage 2 base with cup-and-handle or flat base structure.",
+        "min_vision_score": 75,
+        "veto_overhead_resistance": true,
+        "veto_overextended_wicks": true
+      },
+      "block_e_priority_rules": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Swing Portfolio Allocator",
+        "description": "Caps open swing positions to 5 stocks with balanced sector diversification.",
+        "max_recommendations": 3,
+        "priority_ranking_criterion": "CONFLUENCE_SCORE"
+      },
+      "block_f_execution_gate": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Swing Position Sizing",
+        "description": "Swing risk sizing with 1:2.5 risk-to-reward ratio.",
+        "entry_start_time": "09:30",
+        "entry_cutoff_time": "15:00",
+        "auto_square_off_time": "15:30",
+        "max_risk_per_trade_pct": 2.0
+      }
+    },
+    {
+      "id": "strat_long_term_wealth",
+      "name": "Long-Term Positional & Wealth (3+ Months)",
+      "horizon": "LONG_TERM_3M_PLUS",
+      "description": "Secular business compounding strategy investing in high ROCE (>15%), clean balance sheets, and quarterly profit growth during multi-month accumulation pivots.",
+      "is_default": false,
+      "is_active": false,
+      "created_at": 1726690000,
+      "updated_at": 1789757900,
+      "target_pct": 35.0,
+      "stop_loss_pct": 10.0,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 50,
+        "exclude_illiquid": true,
+        "min_volume": 100000,
+        "volume_lookback_days": 30,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 25,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": true,
+        "max_debt_to_equity": 0.8,
+        "exclude_bankruptcy_distress": true,
+        "min_altman_z": 2.5,
+        "exclude_weak_piotroski": true,
+        "min_piotroski": 6,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 10,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 35,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": true,
+        "exclude_choppy_traps": true,
+        "market_regime_filter": {
+          "enabled": true,
+          "index_symbol": "NIFTY50",
+          "require_above_open": false,
+          "require_above_dma20": false,
+          "pause_on_heavy_red": false
+        }
+      },
+      "block_i_knockout_guardrails": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Long-Term Quality Guardrails (Pillar I)",
+        "description": "Strict quality filters ensuring clean corporate governance, minimal pledge, and healthy balance sheet.",
+        "max_vwap_distance_pct": 5.0,
+        "require_volume_expansion": false,
+        "require_coiling_base": false,
+        "min_win_rate_floor": 60,
+        "max_retrace_atr_ratio": 2.0,
+        "allowed_entry_days": [
+          "MON",
+          "TUE",
+          "WED",
+          "THU",
+          "FRI"
+        ],
+        "blocked_days_message": "",
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Multi-Month Accumulation Pivot (Pillar C)",
+        "description": "50-Week EMA accumulation, Monthly RSI 55-70, and institutional volume build (60% cutoff).",
+        "min_current_score": 9,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "c_vwap_proximity",
+            "name": "Proximity to Value / VWAP Anchor",
+            "desc": "Strictly prevents buying overextended green candles. Ensures entry occurs within safe distance to the VWAP anchor.",
+            "category": "Value & Location",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_vwap_opt_1",
+                "label": "Sweet Spot",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "c_vwap_opt_2",
+                "label": "Moderate Extension",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "c_vwap_opt_3",
+                "label": "Overextended",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_volume_surge",
+            "name": "3-Min Volume Expansion Surge",
+            "desc": "Demands an immediate influx of trading volume on the setup trigger candle compared to 20-candle average.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_vol_opt_1",
+                "label": "Surge Spike",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_vol_opt_2",
+                "label": "Moderate Volume",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_vol_opt_3",
+                "label": "Low Volume",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_base_coiling",
+            "name": "Pre-Breakout Coiling Base Compression",
+            "desc": "Ensures price has consolidated tightly in a narrow base before attempting to break out.",
+            "category": "Price Structure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_base_opt_1",
+                "label": "Tight Base",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_base_opt_2",
+                "label": "Moderate Base",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_base_opt_3",
+                "label": "Loose Base",
+                "min_val": 2.5,
+                "max_val": 6.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_supertrend",
+            "name": "SuperTrend (7, 3) Bullish Direction",
+            "desc": "SuperTrend indicator confirms upward directional bias on 1-min and 5-min candles.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_st_opt_1",
+                "label": "Dual Bullish",
+                "state_val": "Bullish on 1m & 5m",
+                "score": 3
+              },
+              {
+                "id": "c_st_opt_2",
+                "label": "5m Only",
+                "state_val": "Bullish on 5m only",
+                "score": 1
+              },
+              {
+                "id": "c_st_opt_3",
+                "label": "Bearish / Neutral",
+                "state_val": "Bearish or Neutral",
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "c_rsi_sweet_spot",
+            "name": "RSI Momentum Sweet Spot (14)",
+            "desc": "RSI reflects bullish momentum without entering extreme blow-off overbought exhaustion.",
+            "category": "Momentum",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_rsi_opt_1",
+                "label": "Bullish Sweet Spot",
+                "min_val": 55.0,
+                "max_val": 68.0,
+                "score": 3
+              },
+              {
+                "id": "c_rsi_opt_2",
+                "label": "Moderate Momentum",
+                "min_val": 48.0,
+                "max_val": 55.0,
+                "score": 1
+              },
+              {
+                "id": "c_rsi_opt_3",
+                "label": "Exhausted / Bearish",
+                "min_val": 68.0,
+                "max_val": 100.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_opening_range_breakout_bias",
+            "name": "Opening Range Breakout (ORB) Bias",
+            "desc": "Position of price relative to the high of the first 15 or 30 minutes of trading.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_orb_opt_1",
+                "label": "Clean ORB Breakout",
+                "min_val": 0.3,
+                "max_val": 2.5,
+                "score": 3
+              },
+              {
+                "id": "c_orb_opt_2",
+                "label": "Testing Range High",
+                "min_val": 0.0,
+                "max_val": 0.3,
+                "score": 1
+              },
+              {
+                "id": "c_orb_opt_3",
+                "label": "Inside / Below Range",
+                "min_val": -5.0,
+                "max_val": 0.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_rvol_threshold",
+            "name": "Relative Volume (RVOL) Multiple",
+            "desc": "Session trading volume divided by expected time-of-day historical volume benchmark.",
+            "category": "Volume & Liquidity",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_rvol_opt_1",
+                "label": "Heavy Institutional RVOL",
+                "min_val": 2.5,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "c_rvol_opt_2",
+                "label": "Moderate Activity",
+                "min_val": 1.5,
+                "max_val": 2.5,
+                "score": 1
+              },
+              {
+                "id": "c_rvol_opt_3",
+                "label": "Sub-par RVOL",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_ema_alignment_stack",
+            "name": "EMA Trend Alignment (9 > 21 > 50)",
+            "desc": "Short, medium, and long exponential moving averages ordered sequentially upward.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_ema_opt_1",
+                "label": "Full Bullish Stack",
+                "state_val": "9 > 21 > 50 EMA Stacked",
+                "score": 3
+              },
+              {
+                "id": "c_ema_opt_2",
+                "label": "Partial Stack",
+                "state_val": "9 > 21 Above 50 EMA",
+                "score": 1
+              },
+              {
+                "id": "c_ema_opt_3",
+                "label": "Tangled / Bearish",
+                "state_val": "EMAs Tangled or Inverted",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_turnover_velocity",
+            "name": "Turnover Velocity per Minute",
+            "desc": "Rupee value transacted per minute showing sustained institutional money flow.",
+            "category": "Volume & Liquidity",
+            "unit": "Cr/m",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_turn_opt_1",
+                "label": "High Velocity",
+                "min_val": 0.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_turn_opt_2",
+                "label": "Moderate Velocity",
+                "min_val": 0.2,
+                "max_val": 0.5,
+                "score": 1
+              },
+              {
+                "id": "c_turn_opt_3",
+                "label": "Slow Flow",
+                "min_val": 0.0,
+                "max_val": 0.2,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_adx_trend_strength",
+            "name": "ADX Trend Strength (14)",
+            "desc": "Average Directional Index quantifying trend conviction regardless of direction.",
+            "category": "Price Structure",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_adx_opt_1",
+                "label": "Strong Trend",
+                "min_val": 25.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_adx_opt_2",
+                "label": "Developing Trend",
+                "min_val": 18.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "c_adx_opt_3",
+                "label": "Choppy Market",
+                "min_val": 0.0,
+                "max_val": 18.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_donchian_breakout_band",
+            "name": "Donchian 20-Period High Breakout",
+            "desc": "Proximity to the highest high of the previous 20 candles.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_don_opt_1",
+                "label": "New 20-High Break",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_don_opt_2",
+                "label": "Within 1% of High",
+                "min_val": -1.0,
+                "max_val": 0.0,
+                "score": 1
+              },
+              {
+                "id": "c_don_opt_3",
+                "label": "Well Below High",
+                "min_val": -10.0,
+                "max_val": -1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_hurst_exponent_persistence",
+            "name": "Hurst Exponent Trend Persistence",
+            "desc": "Statistical metric distinguishing genuine trending behavior (H > 0.55) from mean reversion.",
+            "category": "Volatility & Noise",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "c_hurst_opt_1",
+                "label": "Persistent Trend",
+                "min_val": 0.6,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "c_hurst_opt_2",
+                "label": "Mild Trend",
+                "min_val": 0.5,
+                "max_val": 0.6,
+                "score": 1
+              },
+              {
+                "id": "c_hurst_opt_3",
+                "label": "Mean Reverting",
+                "min_val": 0.0,
+                "max_val": 0.5,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_macd_histogram_momentum",
+            "name": "MACD Histogram Momentum Slope",
+            "desc": "Rate of change of the MACD histogram showing accelerating buying pressure.",
+            "category": "Momentum",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_macd_opt_1",
+                "label": "Accelerating Bullish",
+                "state_val": "Positive & Expanding",
+                "score": 3
+              },
+              {
+                "id": "c_macd_opt_2",
+                "label": "Positive Flattening",
+                "state_val": "Positive Flat",
+                "score": 1
+              },
+              {
+                "id": "c_macd_opt_3",
+                "label": "Negative / Contracting",
+                "state_val": "Negative",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_parabolic_sar_step",
+            "name": "Parabolic SAR (0.02, 0.2) Support",
+            "desc": "Trailing stop dots aligned comfortably beneath recent price action.",
+            "category": "Trend Direction",
+            "unit": "state",
+            "type": "state",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_sar_opt_1",
+                "label": "Dots Below Price",
+                "state_val": "Dots Below (Bullish)",
+                "score": 3
+              },
+              {
+                "id": "c_sar_opt_2",
+                "label": "Dots Flipping",
+                "state_val": "Dots Testing (Neutral)",
+                "score": 1
+              },
+              {
+                "id": "c_sar_opt_3",
+                "label": "Dots Above Price",
+                "state_val": "Dots Above (Bearish)",
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "c_stochastic_rsi_cycle",
+            "name": "Stochastic RSI %K / %D Cross",
+            "desc": "Fast cyclical turning points confirming momentum cycle inflection.",
+            "category": "Momentum",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_stoch_opt_1",
+                "label": "Bullish Cycle Turn",
+                "min_val": 20.0,
+                "max_val": 60.0,
+                "score": 3
+              },
+              {
+                "id": "c_stoch_opt_2",
+                "label": "Extended Bullish",
+                "min_val": 60.0,
+                "max_val": 80.0,
+                "score": 1
+              },
+              {
+                "id": "c_stoch_opt_3",
+                "label": "Overbought Cycle",
+                "min_val": 80.0,
+                "max_val": 100.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_bollinger_band_pinch",
+            "name": "Bollinger Band Pinch Squeeze",
+            "desc": "Bandwidth narrowing indicating volatility contraction before breakout.",
+            "category": "Volatility & Noise",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_bb_opt_1",
+                "label": "Extreme Squeeze",
+                "min_val": 0.0,
+                "max_val": 1.5,
+                "score": 3
+              },
+              {
+                "id": "c_bb_opt_2",
+                "label": "Moderate Squeeze",
+                "min_val": 1.5,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "c_bb_opt_3",
+                "label": "Wide Bands",
+                "min_val": 3.0,
+                "max_val": 10.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_atr_expansion_ratio",
+            "name": "ATR Multiplier Expansion",
+            "desc": "Candle body expansion relative to recent Average True Range.",
+            "category": "Volatility & Noise",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_atr_opt_1",
+                "label": "Strong Expansion",
+                "min_val": 1.8,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "c_atr_opt_2",
+                "label": "Normal Expansion",
+                "min_val": 1.0,
+                "max_val": 1.8,
+                "score": 1
+              },
+              {
+                "id": "c_atr_opt_3",
+                "label": "Sub-ATR",
+                "min_val": 0.0,
+                "max_val": 1.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_range_compression_ratio",
+            "name": "Range Compression Ratio",
+            "desc": "Ratio of 3-candle range to 20-candle average demonstrating volatility squeeze.",
+            "category": "Price Structure",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_comp_opt_1",
+                "label": "Tight Compression",
+                "min_val": 0.1,
+                "max_val": 0.5,
+                "score": 3
+              },
+              {
+                "id": "c_comp_opt_2",
+                "label": "Average Range",
+                "min_val": 0.5,
+                "max_val": 0.8,
+                "score": 1
+              },
+              {
+                "id": "c_comp_opt_3",
+                "label": "Wide / Dispersed",
+                "min_val": 0.8,
+                "max_val": 2.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "c_tape_orderflow_imbalance",
+            "name": "Tape Orderflow Bid-Ask Imbalance",
+            "desc": "Ratio of aggressive market buyers absorbing resting asks.",
+            "category": "Intraday Microstructure",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "c_tape_opt_1",
+                "label": "Heavy Bid Dominance",
+                "min_val": 60.0,
+                "max_val": 95.0,
+                "score": 3
+              },
+              {
+                "id": "c_tape_opt_2",
+                "label": "Slight Bid Lead",
+                "min_val": 50.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "c_tape_opt_3",
+                "label": "Ask Heavy",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          }
+        ]
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Compounded Return History (Pillar H)",
+        "description": "3-year compound persistence, institutional accumulation, and quick drawdown recovery (60% cutoff).",
+        "min_history_score": 9,
+        "scoring_mode": "DISCRETE_SCORES",
+        "rules": [
+          {
+            "id": "h_win_rate",
+            "name": "45-Day Historical Breakout Win Rate",
+            "desc": "Requires empirical target hit success rate across past 20 similar setups.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_win_opt_1",
+                "label": "High Hit Rate",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_win_opt_2",
+                "label": "Moderate Win Rate",
+                "min_val": 55.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_win_opt_3",
+                "label": "Unreliable Hit Rate",
+                "min_val": 0.0,
+                "max_val": 55.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_max_pullback_atr",
+            "name": "Adverse Excursion Drawdown (Max Pullback)",
+            "desc": "Measures deepest dip relative to ATR before stock targets are achieved.",
+            "category": "Drawdown Risk",
+            "unit": "x",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_draw_opt_1",
+                "label": "Shallow Dip",
+                "min_val": 0.0,
+                "max_val": 0.8,
+                "score": 3
+              },
+              {
+                "id": "h_draw_opt_2",
+                "label": "Normal Retrace",
+                "min_val": 0.8,
+                "max_val": 1.2,
+                "score": 1
+              },
+              {
+                "id": "h_draw_opt_3",
+                "label": "Deep Shakeout",
+                "min_val": 1.2,
+                "max_val": 3.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_profit_factor",
+            "name": "Historical Profit Factor (Gross Wins / Losses)",
+            "desc": "Ratio of cumulative historical gains to cumulative losses across backtest window.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_pf_opt_1",
+                "label": "Exceptional Edge",
+                "min_val": 2.2,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_pf_opt_2",
+                "label": "Positive Edge",
+                "min_val": 1.4,
+                "max_val": 2.2,
+                "score": 1
+              },
+              {
+                "id": "h_pf_opt_3",
+                "label": "Sub-par Edge",
+                "min_val": 0.0,
+                "max_val": 1.4,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_morning_momentum_win_rate",
+            "name": "Morning Session Win Rate (9:15\u201311:00)",
+            "desc": "Historical performance specifically during the morning momentum drive window.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_morn_opt_1",
+                "label": "Strong Morning Edge",
+                "min_val": 65.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_morn_opt_2",
+                "label": "Average Morning Edge",
+                "min_val": 50.0,
+                "max_val": 65.0,
+                "score": 1
+              },
+              {
+                "id": "h_morn_opt_3",
+                "label": "Morning Trap Stock",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_trap_failure_rate",
+            "name": "False Breakout Trap Rate",
+            "desc": "Frequency at which historical breakouts failed and reversed back through breakout price.",
+            "category": "Drawdown Risk",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_trap_opt_1",
+                "label": "Clean Follow-Through",
+                "min_val": 0.0,
+                "max_val": 15.0,
+                "score": 3
+              },
+              {
+                "id": "h_trap_opt_2",
+                "label": "Occasional Traps",
+                "min_val": 15.0,
+                "max_val": 25.0,
+                "score": 1
+              },
+              {
+                "id": "h_trap_opt_3",
+                "label": "Chronic Trap Stock",
+                "min_val": 25.0,
+                "max_val": 100.0,
+                "score": -3
+              }
+            ]
+          },
+          {
+            "id": "h_volume_confluence_ratio",
+            "name": "Volume Confluence Reliability",
+            "desc": "Percentage of historical winning trades that had volume above 2x at entry.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_vc_opt_1",
+                "label": "High Confluence",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_vc_opt_2",
+                "label": "Moderate Confluence",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_vc_opt_3",
+                "label": "Unreliable Volume",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_hurst_backtest_persistence",
+            "name": "60-Day Hurst Trend Persistence",
+            "desc": "Average empirical Hurst exponent across past 60 trading days.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "H",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_hp_opt_1",
+                "label": "Strongly Persistent",
+                "min_val": 0.65,
+                "max_val": 1.0,
+                "score": 3
+              },
+              {
+                "id": "h_hp_opt_2",
+                "label": "Mildly Persistent",
+                "min_val": 0.55,
+                "max_val": 0.65,
+                "score": 1
+              },
+              {
+                "id": "h_hp_opt_3",
+                "label": "Mean-Reverting Noise",
+                "min_val": 0.0,
+                "max_val": 0.55,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_midday_chop_resilience",
+            "name": "Midday Chop Resilience (11:30\u201313:30)",
+            "desc": "Win rate when trades trigger during slower midday session.",
+            "category": "Session Edge",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_mid_opt_1",
+                "label": "Chop Resilient",
+                "min_val": 60.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_mid_opt_2",
+                "label": "Average Midday",
+                "min_val": 45.0,
+                "max_val": 60.0,
+                "score": 1
+              },
+              {
+                "id": "h_mid_opt_3",
+                "label": "Midday Bleeder",
+                "min_val": 0.0,
+                "max_val": 45.0,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_adr_realization_rate",
+            "name": "Average Daily Range (ADR) Capture Rate",
+            "desc": "Percentage of historical days where stock achieves full ADR move.",
+            "category": "Historical Hit Rate",
+            "unit": "%",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_adr_opt_1",
+                "label": "High Range Capture",
+                "min_val": 70.0,
+                "max_val": 100.0,
+                "score": 3
+              },
+              {
+                "id": "h_adr_opt_2",
+                "label": "Average Capture",
+                "min_val": 50.0,
+                "max_val": 70.0,
+                "score": 1
+              },
+              {
+                "id": "h_adr_opt_3",
+                "label": "Compressed Moves",
+                "min_val": 0.0,
+                "max_val": 50.0,
+                "score": -1
+              }
+            ]
+          },
+          {
+            "id": "h_volatility_adjusted_expectancy",
+            "name": "Volatility-Adjusted Edge Expectancy",
+            "desc": "Expected rupee value per trade normalized by historical volatility.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "pts",
+            "type": "numeric",
+            "enabled": true,
+            "options": [
+              {
+                "id": "h_exp_opt_1",
+                "label": "High Expectancy",
+                "min_val": 1.5,
+                "max_val": 5.0,
+                "score": 3
+              },
+              {
+                "id": "h_exp_opt_2",
+                "label": "Positive Expectancy",
+                "min_val": 0.8,
+                "max_val": 1.5,
+                "score": 1
+              },
+              {
+                "id": "h_exp_opt_3",
+                "label": "Negative Expectancy",
+                "min_val": -2.0,
+                "max_val": 0.8,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_avg_trade_gain_loss",
+            "name": "Average Trade Gain-to-Loss Multiple",
+            "desc": "Average gain on winners divided by average loss on stopped trades.",
+            "category": "Risk-Adjusted Edge",
+            "unit": "ratio",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_gl_opt_1",
+                "label": "High Multiple",
+                "min_val": 2.0,
+                "max_val": 10.0,
+                "score": 3
+              },
+              {
+                "id": "h_gl_opt_2",
+                "label": "Acceptable Multiple",
+                "min_val": 1.3,
+                "max_val": 2.0,
+                "score": 1
+              },
+              {
+                "id": "h_gl_opt_3",
+                "label": "Poor Multiple",
+                "min_val": 0.0,
+                "max_val": 1.3,
+                "score": -2
+              }
+            ]
+          },
+          {
+            "id": "h_consecutive_losses",
+            "name": "Max Consecutive Loss Streak",
+            "desc": "Worst historical streak of consecutive stop-outs in backtest window.",
+            "category": "Drawdown Risk",
+            "unit": "trades",
+            "type": "numeric",
+            "enabled": false,
+            "options": [
+              {
+                "id": "h_loss_opt_1",
+                "label": "Short Streak (1-2)",
+                "min_val": 1.0,
+                "max_val": 2.0,
+                "score": 3
+              },
+              {
+                "id": "h_loss_opt_2",
+                "label": "Average Streak (3)",
+                "min_val": 3.0,
+                "max_val": 3.0,
+                "score": 1
+              },
+              {
+                "id": "h_loss_opt_3",
+                "label": "Long Streak (>4)",
+                "min_val": 4.0,
+                "max_val": 10.0,
+                "score": -3
+              }
+            ]
+          }
+        ]
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Monthly Chart Structural Health (Pillar A)",
+        "description": "Visual verification of multi-year structural uptrend without parabolic climax blow-off.",
+        "min_vision_score": 80,
+        "veto_overhead_resistance": false,
+        "veto_overextended_wicks": false
+      },
+      "block_e_priority_rules": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Long-Term Capital Allocator",
+        "description": "Equal-weight 10-stock compounding basket.",
+        "max_recommendations": 5,
+        "priority_ranking_criterion": "CONFLUENCE_SCORE"
+      },
+      "block_f_execution_gate": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Positional Execution",
+        "description": "Market-hours execution with 1:3.5 risk-to-reward target.",
+        "entry_start_time": "09:15",
+        "entry_cutoff_time": "15:30",
+        "auto_square_off_time": "15:30",
+        "max_risk_per_trade_pct": 3.0
+      }
+    },
+    {
+      "id": "strat_institutional_momentum",
+      "name": "My First Strategy - DEEVARSH",
+      "description": "High-conviction intraday strategy screening out penny, SME, illiquid, and financially distressed stocks, validated across historical hit rates & AI vision.",
+      "is_default": true,
+      "created_at": 1726530000,
+      "updated_at": 1789708305,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 10,
+        "exclude_illiquid": true,
+        "min_volume": 50000,
+        "volume_lookback_days": 30,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 2,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": true,
+        "max_debt_to_equity": 2,
+        "exclude_bankruptcy_distress": true,
+        "min_altman_z": 1.8,
+        "exclude_weak_piotroski": true,
+        "min_piotroski": 4,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 25,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 20,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": false,
+        "exclude_choppy_traps": false
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_C",
+        "title": "Current Parameter Analysis",
+        "description": "19 Intraday Live Parameters (VWAP alignment, SuperTrend, Micro-Breakouts, RSI Momentum, Order Book Depth)"
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_H",
+        "title": "Validate with History",
+        "description": "12 Historical Empirical Backtest Parameters (Target hit rate >= 50%, Hurst Exponent, Risk/Reward Setup Ratio)"
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_A",
+        "title": "AI Vision Setup",
+        "description": "Gemini Multimodal Chart Vision Verification & Candlestick Pattern Confidence Pipeline"
+      },
+      "is_active": false,
+      "block_e_priority_rules": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Priority Rules & Session Allocator",
+        "description": "High-conviction institutional execution rules including VWAP Bounce, Order Book Imbalance, Breakout Retest, and Relative Strength.",
+        "vwap_bounce": {
+          "enabled": true,
+          "max_distance_pct": 0.5,
+          "bounce_candles": 1
+        },
+        "orderbook_imbalance": {
+          "enabled": true,
+          "buy_sell_ratio": 2,
+          "depth_levels": 5,
+          "ask_sweeps": true
+        },
+        "breakout_retest": {
+          "enabled": true,
+          "retest_hold_mins": 2,
+          "pullback_tolerance_pct": 0.4
+        },
+        "relative_strength": {
+          "enabled": true,
+          "min_outperformance_pct": 0.5,
+          "benchmark": "NIFTY50"
+        },
+        "rise_dip_ratio": {
+          "enabled": true,
+          "min_ratio": 2,
+          "lookback_days": 45,
+          "metric": "MEDIAN"
+        },
+        "session_quotas": {
+          "enabled": false,
+          "morning_cap": 999,
+          "midday_cap": 999,
+          "day_end_cap": 999
+        }
+      },
+      "block_f_execution_gate": {
+        "enabled": true,
+        "status": "ACTIVE",
+        "title": "Execution Gate (Go / No-Go Breakout Trigger)",
+        "description": "Point-in-Time intraday breakout timing. Validates real-time Day High (HOD) breakout, relative volume expansion, and VWAP launchpad before elevating a CHA-passed stock to Live Recommendations.",
+        "hod_tolerance_ratio": 0.998,
+        "min_rvol": 1.2,
+        "require_above_vwap": true,
+        "max_vwap_distance_pct": 1.5,
+        "max_base_compression_pct": 2.5,
+        "min_candle_close_pos_pct": 65
+      },
+      "block_i_knockout_guardrails": {
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      }
+    },
+    {
+      "id": "strat_conservative_large_mid",
+      "name": "Conservative Large & Mid-Cap",
+      "description": "Strict solvency and liquidity requirements with 20-day median volume and higher turnover floors.",
+      "is_default": false,
+      "created_at": 1726530000,
+      "updated_at": 1726530000,
+      "block_a_morning_filters": {
+        "enabled": true,
+        "exclude_penny": true,
+        "min_price": 50.0,
+        "exclude_illiquid": true,
+        "min_volume": 200000,
+        "volume_lookback_days": 20,
+        "volume_calc_type": "MEDIAN",
+        "exclude_low_turnover": true,
+        "min_turnover_cr": 5.0,
+        "exclude_surveillance_sme": true,
+        "exclude_non_equity": true,
+        "exclude_circuit_trappers": true,
+        "exclude_high_debt": true,
+        "max_debt_to_equity": 2.0,
+        "exclude_bankruptcy_distress": true,
+        "min_altman_z": 2.2,
+        "exclude_weak_piotroski": true,
+        "min_piotroski": 5,
+        "exclude_high_pledge": true,
+        "max_promoter_pledge": 15.0,
+        "exclude_low_promoter_holding": true,
+        "min_promoter_holding": 30.0,
+        "exclude_loss_makers": true,
+        "exclude_negative_cfo": true,
+        "exclude_52w_low_fallers": false,
+        "exclude_choppy_traps": true
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_C",
+        "title": "Current Parameter Analysis",
+        "description": "19 Intraday Live Parameters"
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_H",
+        "title": "Validate with History",
+        "description": "12 Historical Empirical Backtest Parameters"
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_A",
+        "title": "AI Vision Setup",
+        "description": "Gemini Multimodal Chart Vision Verification"
+      },
+      "is_active": false,
+      "block_e_priority_rules": {
+        "enabled": false,
+        "status": "DRAFT_INACTIVE",
+        "title": "Priority Rules & Session Allocator",
+        "description": "Multi-session quotas & priority ranking based on rise/dip ratio, RVOL, win rate, and lookback statistics.",
+        "sessions": {
+          "morning": {
+            "session_name": "Morning Breakout",
+            "time_window": "09:15 - 11:30 AM",
+            "max_recommendations": 5,
+            "lookback_days": 60,
+            "stat_measure": "AVERAGE",
+            "min_per_day_high_gain_pct": 1.5,
+            "max_per_day_low_dip_pct": 0.8,
+            "min_win_rate_pct": 65.0,
+            "min_rvol": 1.5,
+            "max_base_compression_pct": 2.0,
+            "min_hurst_exponent": 0.55,
+            "min_adr_pct": 2.5,
+            "min_turnover_cr": 2.0,
+            "max_trap_rate_pct": 20.0,
+            "priority_ranking_criterion": "RISE_DIP_RATIO"
+          },
+          "afternoon": {
+            "session_name": "Midday Absorption",
+            "time_window": "11:30 AM - 01:45 PM",
+            "max_recommendations": 3,
+            "lookback_days": 60,
+            "stat_measure": "MEDIAN",
+            "min_per_day_high_gain_pct": 1.8,
+            "max_per_day_low_dip_pct": 0.7,
+            "min_win_rate_pct": 70.0,
+            "min_rvol": 1.8,
+            "max_base_compression_pct": 1.8,
+            "min_hurst_exponent": 0.58,
+            "min_adr_pct": 2.8,
+            "min_turnover_cr": 3.0,
+            "max_trap_rate_pct": 15.0,
+            "priority_ranking_criterion": "CONFLUENCE_SCORE"
+          },
+          "day_end": {
+            "session_name": "Power Hour Sweep",
+            "time_window": "01:45 - 03:30 PM",
+            "max_recommendations": 4,
+            "lookback_days": 45,
+            "stat_measure": "AVERAGE",
+            "min_per_day_high_gain_pct": 2.0,
+            "max_per_day_low_dip_pct": 0.9,
+            "min_win_rate_pct": 65.0,
+            "min_rvol": 2.0,
+            "max_base_compression_pct": 2.2,
+            "min_hurst_exponent": 0.56,
+            "min_adr_pct": 3.0,
+            "min_turnover_cr": 5.0,
+            "max_trap_rate_pct": 18.0,
+            "priority_ranking_criterion": "RVOL"
+          }
+        }
+      },
+      "block_f_execution_gate": {
+        "enabled": false,
+        "status": "DRAFT_INACTIVE",
+        "title": "Execution Gate (Go / No-Go Breakout Trigger)",
+        "description": "Point-in-Time intraday breakout timing. Validates real-time Day High (HOD) breakout, relative volume expansion, and VWAP launchpad before elevating a CHA-passed stock to Live Recommendations.",
+        "hod_tolerance_ratio": 0.998,
+        "min_rvol": 1.5,
+        "require_above_vwap": true,
+        "max_vwap_distance_pct": 1.2,
+        "max_base_compression_pct": 2.0,
+        "min_candle_close_pos_pct": 70
+      },
+      "block_i_knockout_guardrails": {
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      }
+    },
+    {
+      "id": "strat_full_universe_unfiltered",
+      "name": "Full Universe (No Morning Filter)",
+      "description": "Assesses all 5,087+ listed stocks without pre-market exclusions, relying entirely on real-time scoring pillars.",
+      "is_default": false,
+      "created_at": 1726530000,
+      "updated_at": 1726530000,
+      "block_a_morning_filters": {
+        "enabled": false
+      },
+      "block_b_current_params": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_C",
+        "title": "Current Parameter Analysis",
+        "description": "19 Intraday Live Parameters"
+      },
+      "block_c_validate_history": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_H",
+        "title": "Validate with History",
+        "description": "12 Historical Empirical Backtest Parameters"
+      },
+      "block_d_ai_vision": {
+        "enabled": true,
+        "status": "HARDCODED_PILLAR_A",
+        "title": "AI Vision Setup",
+        "description": "Gemini Multimodal Chart Vision Verification"
+      },
+      "block_e_priority_rules": {
+        "enabled": false,
+        "status": "DRAFT_INACTIVE",
+        "title": "Priority Rules & Session Allocator",
+        "description": "Multi-session quotas & priority ranking based on rise/dip ratio, RVOL, win rate, and lookback statistics.",
+        "sessions": {
+          "morning": {
+            "session_name": "Morning Breakout",
+            "time_window": "09:15 - 11:30 AM",
+            "max_recommendations": 5,
+            "lookback_days": 60,
+            "stat_measure": "AVERAGE",
+            "min_per_day_high_gain_pct": 1.5,
+            "max_per_day_low_dip_pct": 0.8,
+            "min_win_rate_pct": 65.0,
+            "min_rvol": 1.5,
+            "max_base_compression_pct": 2.0,
+            "min_hurst_exponent": 0.55,
+            "min_adr_pct": 2.5,
+            "min_turnover_cr": 2.0,
+            "max_trap_rate_pct": 20.0,
+            "priority_ranking_criterion": "RISE_DIP_RATIO"
+          },
+          "afternoon": {
+            "session_name": "Midday Absorption",
+            "time_window": "11:30 AM - 01:45 PM",
+            "max_recommendations": 3,
+            "lookback_days": 60,
+            "stat_measure": "MEDIAN",
+            "min_per_day_high_gain_pct": 1.8,
+            "max_per_day_low_dip_pct": 0.7,
+            "min_win_rate_pct": 70.0,
+            "min_rvol": 1.8,
+            "max_base_compression_pct": 1.8,
+            "min_hurst_exponent": 0.58,
+            "min_adr_pct": 2.8,
+            "min_turnover_cr": 3.0,
+            "max_trap_rate_pct": 15.0,
+            "priority_ranking_criterion": "CONFLUENCE_SCORE"
+          },
+          "day_end": {
+            "session_name": "Power Hour Sweep",
+            "time_window": "01:45 - 03:30 PM",
+            "max_recommendations": 4,
+            "lookback_days": 45,
+            "stat_measure": "AVERAGE",
+            "min_per_day_high_gain_pct": 2.0,
+            "max_per_day_low_dip_pct": 0.9,
+            "min_win_rate_pct": 65.0,
+            "min_rvol": 2.0,
+            "max_base_compression_pct": 2.2,
+            "min_hurst_exponent": 0.56,
+            "min_adr_pct": 3.0,
+            "min_turnover_cr": 5.0,
+            "max_trap_rate_pct": 18.0,
+            "priority_ranking_criterion": "RVOL"
+          }
+        }
+      },
+      "block_f_execution_gate": {
+        "enabled": false,
+        "status": "DRAFT_INACTIVE",
+        "title": "Execution Gate (Go / No-Go Breakout Trigger)",
+        "description": "Point-in-Time intraday breakout timing. Validates real-time Day High (HOD) breakout, relative volume expansion, and VWAP launchpad before elevating a CHA-passed stock to Live Recommendations.",
+        "hod_tolerance_ratio": 0.998,
+        "min_rvol": 1.2,
+        "require_above_vwap": true,
+        "max_vwap_distance_pct": 1.5,
+        "max_base_compression_pct": 2.5,
+        "min_candle_close_pos_pct": 65
+      },
+      "block_i_knockout_guardrails": {
+        "days": {
+          "MON": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "TUE": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.4,
+            "max_gap_open_pct": 4.0,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "WED": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.2,
+            "max_gap_open_pct": 3.5,
+            "min_open_cushion_pct": 0.5,
+            "min_bar_turnover_lakhs": 2.5,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.5,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 3.0,
+            "circuit_safety_buffer_pct": 1.5,
+            "max_bid_ask_spread_pct": 0.15,
+            "min_win_rate_floor": 50,
+            "max_retrace_atr_ratio": 1.2,
+            "nifty_anti_chop_filter": true
+          },
+          "THU": {
+            "enabled": true,
+            "max_vwap_distance_pct": 0.9,
+            "max_gap_open_pct": 2.5,
+            "min_open_cushion_pct": 0.7,
+            "min_bar_turnover_lakhs": 4.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 2.0,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.0,
+            "nifty_anti_chop_filter": true
+          },
+          "FRI": {
+            "enabled": true,
+            "max_vwap_distance_pct": 1.0,
+            "max_gap_open_pct": 3.0,
+            "min_open_cushion_pct": 0.6,
+            "min_bar_turnover_lakhs": 3.0,
+            "require_volume_expansion": true,
+            "min_volume_expansion_ratio": 1.8,
+            "require_coiling_base": true,
+            "max_base_compression_pct": 2.5,
+            "circuit_safety_buffer_pct": 2.0,
+            "max_bid_ask_spread_pct": 0.12,
+            "min_win_rate_floor": 55,
+            "max_retrace_atr_ratio": 1.1,
+            "nifty_anti_chop_filter": true
+          }
+        },
+        "max_gap_open_pct": 3.5,
+        "min_open_cushion_pct": 0.5,
+        "min_bar_turnover_lakhs": 2.5,
+        "circuit_safety_buffer_pct": 1.5,
+        "max_bid_ask_spread_pct": 0.15,
+        "nifty_anti_chop_filter": true,
+        "min_volume_expansion_ratio": 1.5,
+        "max_base_compression_pct": 3.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+# ====================================================================
+# APEX QUANT TRADING PLATFORM - GIT IGNORE
+# ====================================================================
+
+# 1. Environment variables & API Credentials (NEVER commit secrets!)
+.env
+.env.*
+*.env
+backend/app/engine/resend_config.json
+backend/app/engine/supabase_config.json
+backend/app/engine/gemini_config.json
+backend/xkiro_config.json
+backend/.dhan_session.json
+backend/.dhan_totp_config.json
+backend/.users_db.json
+backend/.saved_custom_formulas.json
+*.pem
+*.key
+*.cert
+*.crt
+
+# 2. Financial Tick Data & Heavy Parquet Vaults
+*.parquet
+*.pq
+*.csv
+.vault_data/
+vault_data/
+data_vault/
+tick_data/
+market_cache/
+tick_cache/
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
+backend/data/*.db
+recommendations.db
+
+# 3. Python Virtual Environments & Bytecode
+venv/
+.venv/
+env/
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 4. Node.js & Next.js Builds
+node_modules
+**/node_modules
+**/node_modules/
+node_modules/
+admin-portal/node_modules
+**/.next/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# 5. OS, Log Files & Large Simulation Results
+backend/app/engine/sim_results_*.json
+backend/app/engine/user_trades.json
+backend/app/.saved_portfolios.json
+backend/app/engine/order_sl_tracker.json
+backend/app/engine/morning_screening_state.json
+backend/app/engine/frozen_daily_outcomes.json
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# 6. Temporary & Scratch Files
+scratch/
+backend/scratch/
