@@ -84,6 +84,28 @@ CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON public.admin_audit_logs(created_at DESC);
 
+-- 6. RECO STRATEGIES & RULES (Configured by SuperUser, drives the real-time rule audit)
+CREATE TABLE IF NOT EXISTS public.reco_strategies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    horizon TEXT NOT NULL DEFAULT 'INTRADAY',
+    is_active BOOLEAN DEFAULT FALSE,
+    target_pct NUMERIC(5, 2),
+    stop_loss_pct NUMERIC(5, 2),
+    rules_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_reco_strategies_active ON public.reco_strategies(is_active);
+
+-- 7. RECO SYSTEM STATE (Active strategy pointer, global runtime settings)
+CREATE TABLE IF NOT EXISTS public.reco_system_state (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
 -- ====================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ====================================================================
@@ -92,6 +114,13 @@ ALTER TABLE public.user_dhan_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.published_recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reco_rule_audits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reco_strategies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reco_system_state ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service Role Full Access Strategies" ON public.reco_strategies FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Public Read Strategies" ON public.reco_strategies FOR SELECT USING (true);
+CREATE POLICY "Service Role Full Access System State" ON public.reco_system_state FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Public Read System State" ON public.reco_system_state FOR SELECT USING (true);
 
 -- Service Role Key has full access to manage records
 CREATE POLICY "Service Role Full Access Users" ON public.users

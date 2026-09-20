@@ -1458,10 +1458,22 @@ class RecoAuditService:
         }
 
     def save_strategies_data(self, data: Dict[str, Any]) -> bool:
-        """Persists strategies configuration."""
+        """Persists strategies configuration locally and in Supabase."""
         try:
             with open(STRATEGIES_PATH, "w") as f:
                 json.dump(data, f, indent=2)
+            
+            # Sync to Supabase cloud database
+            try:
+                from app.engine.supabase_client import supabase_service
+                if supabase_service.is_configured():
+                    for strat in data.get("strategies", []):
+                        supabase_service.upsert_strategy(strat)
+                    if data.get("active_strategy_id"):
+                        supabase_service.set_system_state("active_strategy_id", data["active_strategy_id"])
+            except Exception as e_sup:
+                logger.warning(f"Failed to sync strategies to Supabase: {e_sup}")
+
             return True
         except Exception as e:
             logger.error(f"Error saving strategies.json: {e}")

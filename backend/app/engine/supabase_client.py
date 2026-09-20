@@ -201,4 +201,84 @@ class SupabaseService:
         except Exception as e:
             logger.warning(f"[Supabase] Error logging rule audit: {e}")
 
+    # ==================== STRATEGIES & RECO RULES ====================
+
+    def upsert_strategy(self, strategy: Dict[str, Any]):
+        if not self.is_configured():
+            return
+        try:
+            url = f"{self.supabase_url}/rest/v1/reco_strategies"
+            payload = {
+                "id": strategy.get("id"),
+                "name": strategy.get("name", "Custom Alpha Strategy"),
+                "horizon": strategy.get("horizon", "INTRADAY"),
+                "is_active": bool(strategy.get("is_active", False)),
+                "target_pct": float(strategy.get("target_pct", 2.0)) if strategy.get("target_pct") is not None else None,
+                "stop_loss_pct": float(strategy.get("stop_loss_pct", 1.0)) if strategy.get("stop_loss_pct") is not None else None,
+                "rules_config": strategy,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            headers = self._get_headers()
+            headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+            with httpx.Client(timeout=5.0) as client:
+                client.post(url, headers=headers, json=payload)
+        except Exception as e:
+            logger.warning(f"[Supabase] Error saving strategy {strategy.get('id')}: {e}")
+
+    def fetch_all_strategies(self) -> List[Dict[str, Any]]:
+        if not self.is_configured():
+            return []
+        try:
+            url = f"{self.supabase_url}/rest/v1/reco_strategies?select=*&order=updated_at.desc"
+            with httpx.Client(timeout=5.0) as client:
+                res = client.get(url, headers=self._get_headers())
+                if res.status_code == 200:
+                    rows = res.json()
+                    # Return reconstructed strategy config
+                    strategies = []
+                    for r in rows:
+                        cfg = r.get("rules_config", {})
+                        if isinstance(cfg, dict):
+                            cfg["id"] = r.get("id")
+                            cfg["name"] = r.get("name")
+                            cfg["is_active"] = r.get("is_active")
+                            strategies.append(cfg)
+                    return strategies
+        except Exception as e:
+            logger.warning(f"[Supabase] Error fetching strategies: {e}")
+        return []
+
+    def set_system_state(self, key: str, value: Any):
+        if not self.is_configured():
+            return
+        try:
+            url = f"{self.supabase_url}/rest/v1/reco_system_state"
+            payload = {
+                "key": key,
+                "value": value,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            headers = self._get_headers()
+            headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+            with httpx.Client(timeout=5.0) as client:
+                client.post(url, headers=headers, json=payload)
+        except Exception as e:
+            logger.warning(f"[Supabase] Error updating system state {key}: {e}")
+
+    def get_system_state(self, key: str) -> Optional[Any]:
+        if not self.is_configured():
+            return None
+        try:
+            url = f"{self.supabase_url}/rest/v1/reco_system_state?key=eq.{key}&select=value"
+            with httpx.Client(timeout=5.0) as client:
+                res = client.get(url, headers=self._get_headers())
+                if res.status_code == 200:
+                    rows = res.json()
+                    if rows:
+                        return rows[0].get("value")
+        except Exception as e:
+            logger.warning(f"[Supabase] Error fetching system state {key}: {e}")
+        return None
+
 supabase_service = SupabaseService()
+
