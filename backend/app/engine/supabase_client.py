@@ -64,7 +64,7 @@ class SupabaseService:
             logger.warning(f"[Supabase] Error querying user {email}: {e}")
         return None
 
-    def upsert_user(self, email: str, password_hash: str, is_verified: bool = True) -> Optional[Dict[str, Any]]:
+    def upsert_user(self, email: str, password_hash: str, is_verified: bool = True, role: str = "NormalUser") -> Optional[Dict[str, Any]]:
         if not self.is_configured():
             return None
         try:
@@ -73,6 +73,7 @@ class SupabaseService:
                 "email": email.lower().strip(),
                 "password_hash": password_hash,
                 "is_verified": is_verified,
+                "role": role,
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
             headers = self._get_headers()
