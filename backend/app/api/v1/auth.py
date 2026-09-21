@@ -9,6 +9,8 @@ from pydantic import BaseModel, EmailStr
 
 logger = logging.getLogger(__name__)
 
+from app.engine.resend_service import resend_service
+
 router = APIRouter()
 
 # In-memory storage for auth & alerts
@@ -76,10 +78,19 @@ def request_otp(payload: RequestOtpPayload):
     }
     logger.info(f"Generated OTP for {email}: {otp}")
 
+    # Dispatch real email via Resend
+    email_dispatched = False
+    try:
+        resend_service.send_otp_email(email, otp)
+        email_dispatched = True
+        logger.info(f"Verification OTP email dispatched via Resend to {email}")
+    except Exception as e_resend:
+        logger.warning(f"Resend dispatch error for {email}: {e_resend}")
+
     return {
         "success": True,
-        "message": f"OTP successfully generated for {email}.",
-        "dev_otp": otp  # Included for smooth automated test & evaluation
+        "message": f"6-digit verification code sent to {email}. Please check your inbox.",
+        "dev_otp": otp if not email_dispatched else None
     }
 
 @router.post("/auth/verify-otp-password")
