@@ -8,7 +8,7 @@ User=root
 WorkingDirectory=/var/www/stock/backend
 Environment="PYTHONPATH=/var/www/stock/backend"
 EnvironmentFile=-/var/www/stock/backend/.env
-ExecStart=/var/www/stock/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+ExecStart=/var/www/stock/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/smartauto-backend.log
