@@ -1202,15 +1202,17 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
               )}
             </div>
 
-            {/* Middle-Right: Eligible Stocks Count Badge based on active filter */}
+            {/* Middle-Right: Monitored vs Qualified Stocks Count Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs whitespace-nowrap self-end md:self-auto">
               <span className={`w-2 h-2 rounded-full ${selectedGate === "GO" ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"}`} />
-              <span className="text-slate-500 font-semibold">Eligible:</span>
+              <span className="text-slate-500 font-semibold">
+                {selectedGate === "GO" ? "Qualified (GO):" : selectedGate === "WAITING" ? "Pending / Held:" : "Monitored:"}
+              </span>
               <span className={`font-extrabold font-mono ${selectedGate === "GO" ? "text-emerald-700" : "text-indigo-700"}`}>
                 {totalCount.toLocaleString()}
               </span>
               <span className="text-slate-400 text-[11px] font-medium">
-                / {(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 586)).toLocaleString()} stocks
+                {selectedGate === "ALL" ? ` stocks (${passedCount} Qualified)` : `/ ${(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 586)).toLocaleString()} stocks`}
               </span>
             </div>
 

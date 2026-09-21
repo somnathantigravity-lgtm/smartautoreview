@@ -210,7 +210,7 @@ export const RecoAuditReasonModal: React.FC<RecoAuditReasonModalProps> = ({
           </div>
 
           <div className="text-[11px] font-mono text-slate-500">
-            Thresholds: C ≥ 60% • H ≥ 50% • A ≥ 60%
+            Thresholds: C ≥ 50% • H ≥ 50% • A ≥ 60%
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export const RecoAuditReasonModal: React.FC<RecoAuditReasonModalProps> = ({
                 let failureDesc = item.failure_reason || (item.reasons && item.reasons[0]) || "";
                 if (!isHit && !failureDesc) {
                   const reasons: string[] = [];
-                  if (itemC < 60) reasons.push(`C is below threshold (${itemC}% < 60%)`);
+                  if (itemC < 50) reasons.push(`C is below threshold (${itemC}% < 50%)`);
                   if (itemH < 50) reasons.push(`H is below threshold (${itemH}% < 50%)`);
                   if (itemA < 60) reasons.push(`A is below threshold (${itemA}% < 60%)`);
                   failureDesc = reasons.join(" • ") || "Waiting for Breakout";

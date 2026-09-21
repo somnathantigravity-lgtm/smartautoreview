@@ -165,8 +165,9 @@
         "enabled": true,
         "status": "ACTIVE",
         "title": "Current Setup Verification (Pillar C)",
-        "description": "7 live intraday momentum indicators scored (+3, +2, +1, 0, -1, -2, -3). 60% passing score cutoff.",
-        "min_current_score": 13,
+        "description": "7 live intraday momentum indicators scored (+3, +2, +1, 0, -1, -2, -3). 50% passing score cutoff.",
+        "min_score": 50,
+        "min_current_score": 10,
         "scoring_mode": "DISCRETE_SCORES",
         "rules": [
           {

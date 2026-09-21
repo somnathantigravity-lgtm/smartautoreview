@@ -308,7 +308,17 @@ class RecoAuditService:
 
         vwap_val = round(float(stk_meta.get("vwap") or (ltp * 0.9975 if ltp > 0 else 0.0)), 2)
         vwap_dist_pct = round(abs(ltp - vwap_val) / max(0.01, vwap_val) * 100.0, 2) if vwap_val > 0 else 0.25
-        rvol_val = round(float(stk_meta.get("rvol") or 1.4), 2)
+        
+        # Dynamic RVOL: volume normalized against elapsed session progress (09:15 to 15:30)
+        elapsed_m = max(1, (now_ist.hour * 60 + now_ist.minute) - (9 * 60 + 15))
+        session_prog = min(1.0, elapsed_m / 375.0)
+        expected_vol = max(15000, int(100000 * session_prog))
+        if stk_meta.get("rvol"):
+            rvol_val = round(float(stk_meta["rvol"]), 2)
+        elif vol > 0:
+            rvol_val = round(max(0.9, min(4.5, vol / float(expected_vol))), 2)
+        else:
+            rvol_val = 1.2
 
         bid_qty = int(stk_meta.get("bid_qty") or int(vol * 0.52))
         ask_qty = int(stk_meta.get("ask_qty") or int(vol * 0.48))
@@ -488,8 +498,10 @@ class RecoAuditService:
                 c_fail_reasons.append(f"{rname}: {label} ({pts:+d} pts)")
 
         score_c = int(round((c_pts / max(1, c_max_pts)) * 100.0)) if c_max_pts > 0 else 75
-        c_cutoff = int(block_c.get("min_score", 60))
+        c_cutoff = int(block_c.get("min_score", 50))
         pillar_c_passed = bool(score_c >= c_cutoff)
+        if pillar_c_passed:
+            c_fail_reasons = []
 
         # -------------------------------------------------------------------------
         # 4. PILLAR H: 60-DAY HISTORICAL PROOF RANGE OPTIONS EVALUATION
@@ -593,7 +605,7 @@ class RecoAuditService:
         # p_hod_tolerance
         if is_p_active("p_hod_tolerance", True):
             p_total += 1
-            hod_tol = float(block_f.get("hod_tolerance_ratio", 0.998))
+            hod_tol = float(block_f.get("hod_tolerance_ratio", 0.995) or 0.995)
             if ltp >= (day_hi * hod_tol):
                 p_passed += 1
             else:
@@ -911,7 +923,7 @@ class RecoAuditService:
                 "mode_current": True,
                 "mode_validated": (score_h >= 50),
                 "mode_vision": (score_a >= 60),
-                "is_full_step": (score_c >= 60 and score_h >= 50 and score_a >= 60),
+                "is_full_step": (score_c >= 50 and score_h >= 50 and score_a >= 60),
                 "reasons": [f"Triggered by Reco Audit: C={score_c}%, H={score_h}%, A={score_a}% (WA={score_wa}%)"],
                 "why_buy_reasons": [
                     f"Institutional Reco Audit: C={score_c}%, H={score_h}%, A={score_a}%",
@@ -1971,6 +1983,16 @@ class RecoAuditService:
         audit_date = date.strip() if (date and date.strip()) else today_str
         self.record_tested_date(audit_date)
 
+        # High-Speed Matrix Cache: Return in <1ms if evaluated within 4 seconds for identical filter query
+        cache_key = f"{search}_{sector}_{policy}_{execution_gate}_{min_hit_pct}_{max_hit_pct}_{page}_{page_size}_{audit_date}"
+        now_ts = time.time()
+        if not hasattr(self, "_audit_matrix_cache"):
+            self._audit_matrix_cache = {}
+        if cache_key in self._audit_matrix_cache:
+            c_ts, c_data = self._audit_matrix_cache[cache_key]
+            if now_ts - c_ts < 4.0:
+                return c_data
+
         screening_status = self.get_screening_status()
         live_recos: Dict[str, Dict[str, Any]] = {}
         # 1. Read from recommendation_engine._live_recos
@@ -2034,6 +2056,9 @@ class RecoAuditService:
             if (eligible_set is None or b["symbol"].upper().strip() in eligible_set or b["symbol"].upper().strip() in live_recos)
         ]
 
+        active_strat = self.get_active_strategy()
+        now_ist = datetime.now(IST)
+
         for b in target_stocks:
             sym = b["symbol"].upper().strip()
 
@@ -2090,8 +2115,6 @@ class RecoAuditService:
                 policy_fail_desc = "Market Not Started Yet (Opens at 09:15 AM)"
                 reasons = ["Dalal Street market has not opened yet today. Real-time audit scoring, volume, and target hit evaluations commence automatically at 09:15 AM IST."]
             else:
-                now_ist = datetime.now(IST)
-                active_strat = self.get_active_strategy()
                 ev = self._evaluate_stock_michpa(
                     sym=sym,
                     stk_meta=stk_meta,
@@ -2154,7 +2177,7 @@ class RecoAuditService:
             # Block F Execution Gate (Go / No-Go Breakout Timing)
             active_strat = self.get_active_strategy()
             gate_cfg = active_strat.get("block_f_execution_gate", {})
-            hod_tol_ratio = float(gate_cfg.get("hod_tolerance_ratio", 0.998) or 0.998)
+            hod_tol_ratio = float(gate_cfg.get("hod_tolerance_ratio", 0.995) or 0.995)
             gate_min_rvol = float(gate_cfg.get("min_rvol", 1.2) or 1.2)
             gate_req_vwap = bool(gate_cfg.get("require_above_vwap", True))
             gate_max_vwap_pct = float(gate_cfg.get("max_vwap_distance_pct", 1.5) or 1.5)
@@ -2171,12 +2194,31 @@ class RecoAuditService:
                 trigger_price = round(max(day_hi, ltp * 1.001), 2)
             gap_pct = round(((trigger_price - ltp) / max(0.01, ltp)) * 100, 2) if ltp > 0 else 0.0
 
-            rvol_val = 1.6 if has_valid_live_reco else round(float(stk_meta.get("rvol") or 0.85), 2)
+            # Dynamic session RVOL based on volume & elapsed trading time
+            now_t = datetime.now(IST)
+            elapsed_m = max(1, (now_t.hour * 60 + now_t.minute) - (9 * 60 + 15))
+            session_prog = min(1.0, elapsed_m / 375.0)
+            expected_vol = max(15000, int(100000 * session_prog))
+            if has_valid_live_reco:
+                rvol_val = 1.6
+            elif stk_meta.get("rvol"):
+                rvol_val = round(float(stk_meta["rvol"]), 2)
+            elif vol > 0:
+                rvol_val = round(max(0.9, min(4.5, vol / float(expected_vol))), 2)
+            else:
+                rvol_val = 1.2
+
             vwap_val = round(float(stk_meta.get("vwap") or (ltp * 0.998 if ltp > 0 else 0.0)), 2)
             vwap_dist_pct = round(((ltp - vwap_val) / max(0.01, vwap_val)) * 100, 2) if vwap_val > 0 else 0.0
 
-            # Execution Gate triggers GO if the stock is a live recommendation or satisfies the breakout ignition criteria
-            is_gate_go = bool(has_valid_live_reco or (policy_passed and (ltp >= (day_hi * hod_tol_ratio) and rvol_val >= gate_min_rvol and (not gate_req_vwap or ltp >= vwap_val) and vwap_dist_pct <= gate_max_vwap_pct)))
+            # Execution Gate triggers GO if the stock satisfies breakout ignition or passes Pillar P
+            is_breakout_ignited = bool(
+                (ltp >= (day_hi * hod_tol_ratio))
+                and rvol_val >= gate_min_rvol
+                and (not gate_req_vwap or ltp >= vwap_val)
+                and vwap_dist_pct <= gate_max_vwap_pct
+            )
+            is_gate_go = bool(has_valid_live_reco or (policy_passed and (ev.get("pillar_p_status") == "GO" or is_breakout_ignited)))
             execution_gate_status = "GO" if is_gate_go else "WAITING"
             gate_reasons = []
             if is_gate_go:
@@ -2339,11 +2381,12 @@ class RecoAuditService:
         # Fetch real-time cadence health (last 1m & 10m)
         cadence_info = self.get_cadence_counts(eligible_count=total_count)
 
-        return {
+        resp_dict = {
             "status": "SUCCESS",
             "audit_date": audit_date,
             "available_dates": self.get_audit_available_dates(),
             "total_count": total_count,
+            "total": total_count,
             "passed_count": passed_count,
             "michpa_qualified_count": michpa_qualified_count,
             "held_count": held_count,
@@ -2362,6 +2405,8 @@ class RecoAuditService:
             "total_pages": math.ceil(total_count / max(1, page_size)),
             "items": page_items
         }
+        self._audit_matrix_cache[cache_key] = (now_ts, resp_dict)
+        return resp_dict
 
     def get_stock_audit_history(self, symbol: str) -> Dict[str, Any]:
         """
@@ -2412,7 +2457,7 @@ class RecoAuditService:
 
         price_pass = base_p >= 15.0 or base_p == 0.0
         vol_pass = vol >= 100000
-        c_pass = score_c >= 60
+        c_pass = score_c >= 50
         h_pass = score_h >= 50
         a_pass = score_a >= 60
         policy_passed = price_pass and vol_pass and c_pass and h_pass and a_pass
@@ -2434,7 +2479,7 @@ class RecoAuditService:
             fail_reasons = []
             if not price_pass: fail_reasons.append(f"Price ₹{base_p:.2f} < ₹15 floor")
             if not vol_pass: fail_reasons.append(f"Volume {vol:,} < 100,000 floor")
-            if not c_pass: fail_reasons.append(f"C: {score_c}% < 60%")
+            if not c_pass: fail_reasons.append(f"C: {score_c}% < 50%")
             if not h_pass: fail_reasons.append(f"H: {score_h}% < 50%")
             if not a_pass: fail_reasons.append(f"A: {score_a}% < 60%")
             today_outcome = "HELD"

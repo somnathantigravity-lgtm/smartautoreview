@@ -49,8 +49,10 @@ export function TerminalApp({
   initialSearch = "",
   forceSpecial = false,
 }: TerminalAppProps) {
+  const isTerminalRoute = forceSpecial || ["reco_audit", "reco_rules", "vault", "simulation", "universe", "watchlist", "trends", "news", "chart", "settings"].includes(defaultTab);
   const [detectedPortal, setDetectedPortal] = useState<"special" | "normal" | "admin">(() => {
-    if (typeof window !== "undefined" && !forceSpecial) {
+    if (isTerminalRoute) return "special";
+    if (typeof window !== "undefined") {
       const port = window.location.port;
       const params = new URLSearchParams(window.location.search);
       const portalParam = params.get("portal");
@@ -59,7 +61,7 @@ export function TerminalApp({
       // Default website (port 3001, or default domain smartautoreviews.com)
       return "normal";
     }
-    return forceSpecial ? "special" : "normal";
+    return "normal";
   });
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [selectedStock, setSelectedStock] = useState<string>(initialStock);

@@ -1252,7 +1252,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   // 2. Recommendations State & Filters (Institutional Quality Gate Defaults)
   const [selectedDate, setSelectedDate] = useState<string>("TODAY");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [minCurrentScore, setMinCurrentScore] = useState<number>(60);
+  const [minCurrentScore, setMinCurrentScore] = useState<number>(50);
   const [minHistoryScore, setMinHistoryScore] = useState<number>(60);
   const [minVisionScore, setMinVisionScore] = useState<number>(60);
   const [minWaScore, setMinWaScore] = useState<number>(60);
@@ -1277,7 +1277,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   const [filterMode, setFilterMode] = useState<"3PILLARS" | "WA_ONLY">("3PILLARS");
 
   // Raw input strings for typing glitch fix — validation only on blur/Enter
-  const [rawCurrentInput, setRawCurrentInput] = useState<string>("60");
+  const [rawCurrentInput, setRawCurrentInput] = useState<string>("50");
   const [rawHistoryInput, setRawHistoryInput] = useState<string>("60");
   const [rawVisionInput, setRawVisionInput] = useState<string>("60");
   const [rawWaInput, setRawWaInput] = useState<string>("60");
@@ -1533,7 +1533,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   // Active Strategy State
   const [strategies, setStrategies] = useState<any[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
-  const [recoScreenMode, setRecoScreenMode] = useState<"STRATEGY_HUB" | "RECOMMENDATIONS_TABLE">("STRATEGY_HUB");
+  const [recoScreenMode, setRecoScreenMode] = useState<"STRATEGY_HUB" | "RECOMMENDATIONS_TABLE">("RECOMMENDATIONS_TABLE");
   const [screeningStatus, setScreeningStatus] = useState<any>(null);
 
   useEffect(() => {
@@ -3271,14 +3271,14 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 {(!["ALL", "AI_PASSED"].includes(stageFilter) || filterMode === "3PILLARS") && (
                   <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg px-1.5 py-1 shadow-2xs animate-in fade-in duration-150">
                     <button
-                      onClick={() => { const v = Math.max(60, minCurrentScore - 5); setMinCurrentScore(v); setRawCurrentInput(String(v)); }}
-                      disabled={minCurrentScore <= 60}
+                      onClick={() => { const v = Math.max(50, minCurrentScore - 5); setMinCurrentScore(v); setRawCurrentInput(String(v)); }}
+                      disabled={minCurrentScore <= 50}
                       className={`text-[10px] font-bold px-1 py-0.5 rounded transition-colors ${
-                        minCurrentScore <= 60
+                        minCurrentScore <= 50
                           ? "text-slate-300 cursor-not-allowed"
                           : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
                       }`}
-                      title={minCurrentScore <= 60 ? "Cannot go below backend minimum (60%)" : "Decrease score floor"}
+                      title={minCurrentScore <= 50 ? "Cannot go below backend minimum (50%)" : "Decrease score floor"}
                     >
                       −5
                     </button>
@@ -3287,10 +3287,10 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                       type="text"
                       inputMode="numeric"
                       value={rawCurrentInput}
-                      placeholder="60"
+                      placeholder="50"
                       onChange={(e) => setRawCurrentInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={() => commitScoreInput(rawCurrentInput, 60, setMinCurrentScore, setRawCurrentInput)}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawCurrentInput, 60, setMinCurrentScore, setRawCurrentInput); }}
+                      onBlur={() => commitScoreInput(rawCurrentInput, 50, setMinCurrentScore, setRawCurrentInput)}
+                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawCurrentInput, 50, setMinCurrentScore, setRawCurrentInput); }}
                       className="w-7 text-center font-mono font-bold text-slate-800 focus:outline-none text-xs"
                     />
                     <span className="text-slate-400 text-[10px]">%</span>
@@ -3415,10 +3415,10 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                   </div>
                 )}
 
-                {(minCurrentScore !== 60 || minHistoryScore !== 60 || minVisionScore !== 60 || minWaScore !== 60) && (
+                {(minCurrentScore !== 50 || minHistoryScore !== 60 || minVisionScore !== 60 || minWaScore !== 60) && (
                   <button
                     onClick={() => {
-                      setMinCurrentScore(60); setRawCurrentInput("60");
+                      setMinCurrentScore(50); setRawCurrentInput("50");
                       setMinHistoryScore(60); setRawHistoryInput("60");
                       setMinVisionScore(60); setRawVisionInput("60");
                       setMinWaScore(60); setRawWaInput("60");
