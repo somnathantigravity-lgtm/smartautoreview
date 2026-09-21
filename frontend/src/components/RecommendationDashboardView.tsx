@@ -1974,7 +1974,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 font-medium">Eligible Stocks</span>
                       <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                        1,119 Stocks
+                        {(strat.eligible_count || 767).toLocaleString()} Stocks
                       </span>
                     </div>
                     <div className="flex items-center justify-between">

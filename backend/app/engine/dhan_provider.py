@@ -1193,15 +1193,9 @@ class DhanDataProvider:
 
             self.subscribed_symbols.update(subscribed_set)
 
-            # 2. Partition into 2 parallel feeds (each <= 4,000 instruments, under Dhan's 5,000 limit)
-            midpoint = (len(unique_instruments) + 1) // 2
-            feed1_instruments = unique_instruments[:midpoint]
-            feed2_instruments = unique_instruments[midpoint:]
-
-            logger.info(
-                f"Starting dual DhanHQ WebSockets for all {len(self.subscribed_symbols)} universe equities: "
-                f"Feed 1: {len(feed1_instruments)} instruments, Feed 2: {len(feed2_instruments)} instruments."
-            )
+            # Cap at 4,000 instruments (safely under Dhan's 5,000 limit)
+            target_instruments = unique_instruments[:4000]
+            logger.info(f"Starting single unified DhanHQ WebSocket for {len(target_instruments)} instruments (Zero REST rate limits).")
 
             def on_connect(feed_instance):
                 self.is_websocket_connected = True
@@ -1343,62 +1337,32 @@ class DhanDataProvider:
                 self.last_error = str(error)
                 logger.error(f"DhanHQ WebSocket error: {error}")
 
-            # Instantiate dual parallel feeds
-            feed1 = MarketFeed(
-                context,
-                feed1_instruments,
-                version='v2',
-                on_connect=on_connect,
-                on_message=on_message,
-                on_close=on_close,
-                on_error=on_error
-            )
-            feed2 = MarketFeed(
-                context,
-                feed2_instruments,
-                version='v2',
-                on_connect=on_connect,
-                on_message=on_message,
-                on_close=on_close,
-                on_error=on_error
-            )
-            self.market_feeds = [feed1, feed2]
-            self.market_feed = feed1
-
-            def _ws_runner(insts, feed_name, feed_idx):
-                if feed_idx > 0:
-                    time.sleep(feed_idx * 4)
+            def _ws_runner():
                 while self.is_connected:
                     try:
-                        logger.info(f"DhanHQ binary {feed_name} (re)starting fresh MarketFeed connection...")
+                        logger.info(f"DhanHQ binary MarketFeed connecting with {len(target_instruments)} instruments...")
                         feed = MarketFeed(
                             context,
-                            insts,
+                            target_instruments,
                             version='v2',
                             on_connect=on_connect,
                             on_message=on_message,
                             on_close=on_close,
                             on_error=on_error
                         )
-                        if len(self.market_feeds) > feed_idx:
-                            self.market_feeds[feed_idx] = feed
-                        else:
-                            self.market_feeds.append(feed)
-                        if feed_idx == 0:
-                            self.market_feed = feed
+                        self.market_feed = feed
+                        self.market_feeds = [feed]
                         feed.run()
                     except Exception as ex:
-                        logger.error(f"DhanHQ {feed_name} run exited with error: {ex}")
+                        logger.error(f"DhanHQ MarketFeed run exited with error: {ex}")
                     if not self.is_connected:
                         break
                     time.sleep(3)
 
-            t1 = threading.Thread(target=_ws_runner, args=(feed1_instruments, "MarketFeed-1", 0), daemon=True)
-            t2 = threading.Thread(target=_ws_runner, args=(feed2_instruments, "MarketFeed-2", 1), daemon=True)
-            self.ws_threads = [t1, t2]
+            t1 = threading.Thread(target=_ws_runner, name="Dhan-MarketFeed", daemon=True)
+            self.ws_threads = [t1]
             self.ws_thread = t1
             t1.start()
-            t2.start()
 
         except Exception as e:
             self.last_error = str(e)

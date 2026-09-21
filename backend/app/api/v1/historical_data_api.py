@@ -193,4 +193,15 @@ def get_auto_daemon_status():
     return auto_tape_daemon.get_status()
 
 
+@router.post("/tape/catchup-today")
+def trigger_catchup_today():
+    """Triggers immediate ingestion of all elapsed 1-minute candles for today."""
+    from app.engine.intraday_today_catchup import today_catchup_service
+    import threading
+    t = threading.Thread(target=today_catchup_service.catchup_today_candles, daemon=True, name="ApiTodayCatchup")
+    t.start()
+    return {"status": "TRIGGERED", "message": "Today's opening 1-minute candle catch-up started in background."}
+
+
+
 

@@ -306,11 +306,30 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
     }
   }, []);
 
+  const fetchScreeningStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/recommendations/screening-status");
+      if (res.ok) {
+        const data = await res.json();
+        setScreeningStatus(data);
+        if (data.ineligible_count !== undefined) {
+          setIneligibleSummary({
+            total_ineligible: data.ineligible_count,
+            breakdown: data.breakdown || {}
+          });
+        }
+      }
+    } catch {
+      // Ignore network glitches
+    }
+  }, []);
+
   useEffect(() => {
     fetchCadence();
+    fetchScreeningStatus();
     const interval = setInterval(fetchCadence, 3000);
     return () => clearInterval(interval);
-  }, [fetchCadence]);
+  }, [fetchCadence, fetchScreeningStatus]);
 
   // Change Audit Interval (5s vs 60s)
   const handleChangeInterval = async (seconds: number) => {
@@ -993,7 +1012,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
             )}
           </div>
           <div className="text-xl font-black text-slate-900 flex items-baseline gap-1.5">
-            <span>{(screeningStatus?.eligible_count || totalCount || 1122).toLocaleString()}</span>
+            <span>{(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 767)).toLocaleString()}</span>
             <span className="text-[10.5px] font-semibold text-slate-500">Monitored</span>
           </div>
         </div>
@@ -1191,7 +1210,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
                 {totalCount.toLocaleString()}
               </span>
               <span className="text-slate-400 text-[11px] font-medium">
-                / {(screeningStatus?.eligible_count || 1122).toLocaleString()} stocks
+                / {(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 767)).toLocaleString()} stocks
               </span>
             </div>
 
