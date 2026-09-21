@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import json
 import time
@@ -7,7 +8,7 @@ import threading
 import uuid
 import sqlite3
 from datetime import datetime, timedelta, timezone, time as dt_time
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Set, Union, Callable
 
 from app.engine.recommendations_db import get_db_connection, init_recommendations_db
 from app.engine.reco_core_scanner import scan_intraday_candles_for_setup, calculate_19_params_match_and_score

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import json
 import math
@@ -5,7 +6,7 @@ import time
 import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Set, Union, Callable
 from .auditable_parameters_engine import compute_hurst_rs
 from .reco_core_scanner import calculate_19_params_match_and_score as core_calculate_19_params
 from .gemini_vision_service import gemini_vision_service
