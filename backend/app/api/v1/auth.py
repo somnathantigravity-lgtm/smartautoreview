@@ -296,3 +296,28 @@ def configure_supabase(payload: SupabaseConfigRequest):
         "message": "Supabase credentials updated successfully!"
     }
 
+class SpecialLoginModel(BaseModel):
+    email: str
+    password: str
+
+@router.post("/auth/special/login")
+def special_user_login(payload: SpecialLoginModel):
+    email = payload.email.strip().lower()
+    password = payload.password.strip()
+    if email != "somnathdey269@gmail.com" or password != "Deevarsh@1":
+        raise HTTPException(
+            status_code=401,
+            detail="Access Prohibited: Only authorized Special User somnathdey269@gmail.com can access the Dalal Street Terminal. Registration is closed."
+        )
+    return {
+        "success": True,
+        "token": f"tok_spec_{uuid.uuid4().hex[:16]}",
+        "user": {
+            "email": "somnathdey269@gmail.com",
+            "name": "Somnath Dey",
+            "role": "special_user"
+        },
+        "message": "Special User authenticated successfully."
+    }
+
+

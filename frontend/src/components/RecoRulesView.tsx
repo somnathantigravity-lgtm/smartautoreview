@@ -1770,6 +1770,8 @@ export function RecoRulesView({ onNavigateToAudit }: RecoRulesViewProps) {
       ...selectedStrategy,
       block_a_morning_filters: updatedFilters
     });
+    // Immediately calculate live eligible and excluded stock tallies on any parameter change
+    refreshPreviewCounts(updatedFilters);
   };
 
   if (loading || !selectedStrategy) {

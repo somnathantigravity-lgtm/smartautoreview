@@ -616,6 +616,8 @@ export interface AuthUser {
   email: string;
   token: string;
   logged_in_at: number;
+  role?: string;
+  name?: string;
 }
 
 export interface TriggeredAlert {

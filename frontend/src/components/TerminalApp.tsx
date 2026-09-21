@@ -20,6 +20,7 @@ import { RecoAuditView } from "./RecoAuditView";
 import { RecoRulesView } from "./RecoRulesView";
 import { NormalUserApp } from "@/components/NormalUserApp";
 import { AdminPortalView } from "@/components/AdminPortalView";
+import { SpecialUserLoginGate } from "@/components/SpecialUserLoginGate";
 
 interface TerminalAppProps {
   defaultTab?: string;
@@ -171,6 +172,12 @@ export function TerminalApp({
   };
 
   const isSinglePage = activeTab === "universe" || activeTab === "watchlist" || activeTab === "trends";
+
+  // Special User Gate: Strictly require somnathdey269@gmail.com
+  const isSpecialAuthorized = authUser?.email?.toLowerCase() === "somnathdey269@gmail.com";
+  if (!isSpecialAuthorized) {
+    return <SpecialUserLoginGate onSuccess={(user) => setAuthUser(user)} />;
+  }
 
   return (
     <div
