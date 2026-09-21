@@ -44,6 +44,13 @@ import {
 import { OrderPlacementModal } from "@/components/OrderPlacementModal";
 import TradeOnePagerModal from "@/components/TradeOnePagerModal";
 import { fetchLiveRecommendations } from "@/services/api";
+import {
+  FilterStudioModal,
+  DynamicFilterConfig,
+  DEFAULT_FILTER_CONFIG,
+  matchesDynamicFilter,
+  countActiveRules
+} from "@/components/FilterStudioModal";
 
 interface Recommendation {
   id: string;
@@ -1252,7 +1259,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   // 2. Recommendations State & Filters (Institutional Quality Gate Defaults)
   const [selectedDate, setSelectedDate] = useState<string>("TODAY");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [minCurrentScore, setMinCurrentScore] = useState<number>(50);
+  const [minCurrentScore, setMinCurrentScore] = useState<number>(60);
   const [minHistoryScore, setMinHistoryScore] = useState<number>(60);
   const [minVisionScore, setMinVisionScore] = useState<number>(60);
   const [minWaScore, setMinWaScore] = useState<number>(60);
@@ -1278,9 +1285,50 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
 
   // Raw input strings for typing glitch fix — validation only on blur/Enter
   const [rawCurrentInput, setRawCurrentInput] = useState<string>("50");
-  const [rawHistoryInput, setRawHistoryInput] = useState<string>("60");
-  const [rawVisionInput, setRawVisionInput] = useState<string>("60");
-  const [rawWaInput, setRawWaInput] = useState<string>("60");
+  const [rawHistoryInput, setRawHistoryInput] = useState<string>("50");
+  const [rawVisionInput, setRawVisionInput] = useState<string>("50");
+  const [rawWaInput, setRawWaInput] = useState<string>("50");
+
+  // ===== SMART FILTERS STATE (All default OFF so user sees ALL recos, user chooses filters) =====
+  const [showSmartFiltersPopup, setShowSmartFiltersPopup] = useState<boolean>(false);
+  const smartFiltersRef = useRef<HTMLDivElement | null>(null);
+  const [smartFilters, setSmartFilters] = useState({
+    targetIn5DRange: false,    // Default OFF: user selects what to check
+    buyersDominant: false,     // Default OFF: user selects what to check
+    minBuyVolume: false,       // Default OFF: user selects what to check
+    minBuyVolumeVal: 50000,    // 50,000 threshold when enabled
+    aboveVwap: false,          // Default OFF: user selects what to check
+    nearDayHigh: false,        // Default OFF: Within 2% of day high
+    nearDayHighPct: 2.0,       // Threshold: how close to day high
+    minWinRate: false,         // Default OFF: Win rate above threshold
+    minWinRateVal: 60,         // Threshold value
+    lowTrapRate: false,        // Default OFF: Bull trap < 20%
+    lowTrapRateVal: 20,        // Threshold value
+    minRankScore: false,       // Default OFF: Rank score above threshold
+    minRankScoreVal: 50,       // Threshold value
+  });
+  const smartFilterActiveCount = useMemo(() => {
+    let c = 0;
+    if (smartFilters.targetIn5DRange) c++;
+    if (smartFilters.buyersDominant) c++;
+    if (smartFilters.minBuyVolume) c++;
+    if (smartFilters.aboveVwap) c++;
+    if (smartFilters.nearDayHigh) c++;
+    if (smartFilters.minWinRate) c++;
+    if (smartFilters.lowTrapRate) c++;
+    if (smartFilters.minRankScore) c++;
+    return c;
+  }, [smartFilters]);
+  // Close smart filters popup on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (smartFiltersRef.current && !smartFiltersRef.current.contains(e.target as Node)) {
+        setShowSmartFiltersPopup(false);
+      }
+    };
+    if (showSmartFiltersPopup) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSmartFiltersPopup]);
 
   // Format historical trading session dates into clean, human-readable labels
   const formatSessionDate = (dStr: string) => {
@@ -1300,76 +1348,37 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
     return { date: dStr, day: "", full: dStr };
   };
 
-  // Market Cap Segmentation Filter (Popover with live counts)
-  const [marketCapFilter, setMarketCapFilter] = useState<string>("ALL");
-  const [isSegmentPopoverOpen, setIsSegmentPopoverOpen] = useState<boolean>(false);
-  const segmentPopoverRef = useRef<HTMLDivElement | null>(null);
+  // Dynamic Filter Studio: Multi-Bucket & AND/OR Rule Builder Engine
+  const [isFilterStudioOpen, setIsFilterStudioOpen] = useState<boolean>(false);
+  const [dynamicFilterConfig, setDynamicFilterConfig] = useState<DynamicFilterConfig>(DEFAULT_FILTER_CONFIG);
+  const activeFilterRulesCount = useMemo(() => countActiveRules(dynamicFilterConfig), [dynamicFilterConfig]);
 
-  // Progressive Stage Filters (Current Passed, History Passed, Priority Passed, AI Passed)
+  // Market Cap Segmentation Filter (Fallback state)
+  const [marketCapFilter, setMarketCapFilter] = useState<string>("ALL");
+
+  // Progressive Stage Filters (Fallback state)
   const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
 
   // Display Format: "CARDS" (3-column responsive grid) vs "TABLE" (dense table)
   const [viewMode, setViewMode] = useState<"CARDS" | "TABLE">("CARDS");
 
-  // Min & Max LTP Price Range Filter (Compact Popover)
+  // Min & Max LTP Price Range Filter (Fallback state)
   const [minPriceFilter, setMinPriceFilter] = useState<string>("");
   const [maxPriceFilter, setMaxPriceFilter] = useState<string>("");
-  const [isPricePopoverOpen, setIsPricePopoverOpen] = useState<boolean>(false);
-  const [tempMinPrice, setTempMinPrice] = useState<string>("");
-  const [tempMaxPrice, setTempMaxPrice] = useState<string>("");
-  const pricePopoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setIsDatePickerOpen(false);
       }
-      if (segmentPopoverRef.current && !segmentPopoverRef.current.contains(event.target as Node)) {
-        setIsSegmentPopoverOpen(false);
-      }
-      if (pricePopoverRef.current && !pricePopoverRef.current.contains(event.target as Node)) {
-        setIsPricePopoverOpen(false);
-      }
-      if (statusPopoverRef.current && !statusPopoverRef.current.contains(event.target as Node)) {
-        setIsStatusPopoverOpen(false);
-      }
-      if (stagePopoverRef.current && !stagePopoverRef.current.contains(event.target as Node)) {
-        setIsStagePopoverOpen(false);
-      }
-      if (sessionPopoverRef.current && !sessionPopoverRef.current.contains(event.target as Node)) {
-        setIsSessionPopoverOpen(false);
-      }
     };
-    if (isDatePickerOpen || isSegmentPopoverOpen || isPricePopoverOpen || isStatusPopoverOpen || isStagePopoverOpen || isSessionPopoverOpen) {
+    if (isDatePickerOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isDatePickerOpen, isSegmentPopoverOpen, isPricePopoverOpen, isStatusPopoverOpen, isStagePopoverOpen, isSessionPopoverOpen]);
-
-  const handleOpenPricePopover = () => {
-    setTempMinPrice(minPriceFilter);
-    setTempMaxPrice(maxPriceFilter);
-    setIsPricePopoverOpen(prev => !prev);
-  };
-
-  const handleApplyPriceFilter = (minVal?: string, maxVal?: string) => {
-    const finalMin = minVal !== undefined ? minVal : tempMinPrice;
-    const finalMax = maxVal !== undefined ? maxVal : tempMaxPrice;
-    setMinPriceFilter(finalMin);
-    setMaxPriceFilter(finalMax);
-    setIsPricePopoverOpen(false);
-  };
-
-  const handleClearPriceFilter = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setMinPriceFilter("");
-    setMaxPriceFilter("");
-    setTempMinPrice("");
-    setTempMaxPrice("");
-    setIsPricePopoverOpen(false);
-  };
+  }, [isDatePickerOpen]);
 
   // Floating "Back to Top" state & window scroll listener (Consistent with Stock Universe)
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
@@ -1463,6 +1472,18 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   const [sectorFilter, setSectorFilter] = useState<string>("ALL");
   const [sortOrder, setSortOrder] = useState<"LATEST_FIRST" | "OLDEST_FIRST">("LATEST_FIRST");
 
+  // Helper: parse trigger time "HH:MM" or "HH:MM:SS" into total seconds of day for accurate chronological sorting
+  const parseSignalSeconds = (tStr?: string): number => {
+    if (!tStr) return -1;
+    const parts = tStr.split(":");
+    if (parts.length < 2) return -1;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const s = parts.length > 2 ? parseInt(parts[2], 10) : 0;
+    if (isNaN(h) || isNaN(m)) return -1;
+    return (h * 3600) + (m * 60) + (isNaN(s) ? 0 : s);
+  };
+
   // Helper: commit raw input to validated score state (strictly enforce floor on blur/Enter)
   const commitScoreInput = (raw: string, floor: number, setter: (v: number) => void, rawSetter: (v: string) => void) => {
     const parsed = parseInt(raw, 10);
@@ -1522,6 +1543,74 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
         .catch(() => {});
     }
   }, [viewMoreStock?.symbol]);
+
+  // Dynamic Real-Time Modal Data: binds viewMoreStock to live ticks and real-time updates from allCurrentTrades
+  const activeModalStock = useMemo(() => {
+    if (!viewMoreStock) return null;
+    const live = allCurrentTrades.find((t) => t.symbol === viewMoreStock.symbol);
+    if (!live) return viewMoreStock;
+
+    const rawStatus = (live.status || viewMoreStock.status || "").toUpperCase();
+    const isTargetHit = rawStatus.includes("TARGET") || rawStatus.includes("SUCCESS");
+    const isStopHit = rawStatus.includes("STOP") || rawStatus.includes("FAIL");
+    const isSquaredOff = rawStatus.includes("SQUARE") || rawStatus.includes("CLOSE");
+
+    const ltpVal = Number((live as any).ltp || (live as any).current_price || live.entry_price || viewMoreStock.entry_price);
+    const currentPrice = (!isTargetHit && !isStopHit && !isSquaredOff)
+      ? Number((live as any).current_price || (live as any).ltp || (live.exchange === "NSE" ? live.nse_price : live.bse_price) || live.entry_price)
+      : (isTargetHit ? live.target_price : isStopHit ? live.stop_loss : Number((live as any).exit_price || (live as any).ltp || live.entry_price));
+
+    const pnl = Number((live as any).live_pnl_pct ?? (((currentPrice - live.entry_price) / live.entry_price) * 100));
+    const isPnlPositive = pnl >= 0;
+
+    const buyQty = Number((live as any).buy_quantity || (live as any).bid_qty || viewMoreStock.buyQty || 0);
+    const sellQty = Number((live as any).sell_quantity || (live as any).ask_qty || viewMoreStock.sellQty || 0);
+    const totalDepth = buyQty + sellQty;
+    const buyPct = totalDepth > 0 ? Math.round((buyQty / totalDepth) * 100) : 50;
+
+    const volume = Number((live as any).volume || viewMoreStock.volume || 0);
+
+    const dayH = Number((live as any).day_high || (live as any).high || viewMoreStock.dayH || Math.max(currentPrice, live.entry_price));
+    const dayL = Number((live as any).day_low || (live as any).low || viewMoreStock.dayL || Math.min(currentPrice, live.entry_price * 0.995));
+    const dayRangeSpan = dayH > dayL ? dayH - dayL : 1;
+    const dayProgressPct = Math.min(100, Math.max(0, ((currentPrice - dayL) / dayRangeSpan) * 100));
+
+    const h5d = Number((live as any).high_5d || viewMoreStock.high_5d || 0);
+    const l5d = Number((live as any).low_5d || viewMoreStock.low_5d || 0);
+    const h5dDiffPct = h5d > 0 ? Number((((currentPrice - h5d) / h5d) * 100).toFixed(1)) : viewMoreStock.h5dDiffPct;
+    const l5dDiffPct = l5d > 0 ? Number((((currentPrice - l5d) / l5d) * 100).toFixed(1)) : viewMoreStock.l5dDiffPct;
+    const d5RangeSpan = h5d > l5d ? h5d - l5d : 1;
+    const d5ProgressPct = Math.min(100, Math.max(0, ((currentPrice - l5d) / d5RangeSpan) * 100));
+
+    return {
+      ...viewMoreStock,
+      currentPrice,
+      ltp: currentPrice,
+      pnl,
+      isPnlPositive,
+      isTargetHit,
+      isStopHit,
+      isSquaredOff,
+      buyQty,
+      sellQty,
+      buyPct,
+      volume,
+      dayH,
+      dayL,
+      dayProgressPct,
+      high_5d: h5d,
+      low_5d: l5d,
+      h5dDiffPct,
+      l5dDiffPct,
+      d5ProgressPct,
+      trigger_rvol: live?.trigger_rvol ?? (live as any)?.rvol ?? viewMoreStock.trigger_rvol,
+      trigger_time: live?.trigger_time ?? (live as any)?.entry_time ?? viewMoreStock.trigger_time,
+      trigger_session: live?.trigger_session ?? viewMoreStock.trigger_session,
+      is_guardrails_passed: live?.is_guardrails_passed ?? viewMoreStock.is_guardrails_passed,
+      is_priority_passed: live?.is_priority_passed ?? viewMoreStock.is_priority_passed,
+      why_buy_reasons: live?.why_buy_reasons ?? viewMoreStock.why_buy_reasons,
+    };
+  }, [viewMoreStock, allCurrentTrades]);
 
   // Broker Feed Health Status
   const [brokerStatus, setBrokerStatus] = useState<string>("CONNECTED");
@@ -1703,39 +1792,37 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
         : (isQuotaErr ? 70 : (t.ai_vision_score ?? 70));
       const waScore = t.weighted_average ?? Math.round(((curScore * 0.45) + (histScore * 0.35)) / 0.80);
 
-      // Score filter only applies to new candidates; already emitted recommendations stay permanently locked
-      if (!isAlreadyRecommended) {
-        if (stageFilter === "KNOCKOUT_PASSED") {
-          if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
-        } else if (stageFilter === "CURRENT_PASSED") {
-          if (curScore < minCurrentScore) return false;
-        } else if (stageFilter === "HISTORY_PASSED") {
-          if (curScore < minCurrentScore) return false;
-          if (histScore < minHistoryScore) return false;
-        } else if (stageFilter === "PRIORITY_PASSED") {
-          if (curScore < minCurrentScore) return false;
-          if (histScore < minHistoryScore) return false;
-          if (!(t as any).is_priority_passed) return false;
-        } else if (stageFilter === "AI_PASSED") {
-          if (curScore < minCurrentScore) return false;
-          if (histScore < minHistoryScore) return false;
-          if (!(t as any).is_priority_passed) return false;
-          const isAi = (t as any).is_ai_passed || t.mode_vision || (t as any).vision_status === "COMPLETED";
-          if (!isAi) return false;
-          if (filterMode === "WA_ONLY") {
-            if (waScore < minWaScore) return false;
-          } else {
-            if (visScore < minVisionScore) return false;
-          }
+      // 3-Pillars Score Gate & WA Filters: directly filter based on user-configured sliders
+      if (stageFilter === "KNOCKOUT_PASSED") {
+        if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
+      } else if (stageFilter === "CURRENT_PASSED") {
+        if (curScore < minCurrentScore) return false;
+      } else if (stageFilter === "HISTORY_PASSED") {
+        if (curScore < minCurrentScore) return false;
+        if (histScore < minHistoryScore) return false;
+      } else if (stageFilter === "PRIORITY_PASSED") {
+        if (curScore < minCurrentScore) return false;
+        if (histScore < minHistoryScore) return false;
+        if (!(t as any).is_priority_passed) return false;
+      } else if (stageFilter === "AI_PASSED") {
+        if (curScore < minCurrentScore) return false;
+        if (histScore < minHistoryScore) return false;
+        if (!(t as any).is_priority_passed) return false;
+        const isAi = (t as any).is_ai_passed || t.mode_vision || (t as any).vision_status === "COMPLETED";
+        if (!isAi) return false;
+        if (filterMode === "WA_ONLY") {
+          if (waScore < minWaScore) return false;
         } else {
-          // Tab ALL
-          if (filterMode === "WA_ONLY") {
-            if (waScore < minWaScore) return false;
-          } else {
-            if (curScore < minCurrentScore) return false;
-            if (histScore < minHistoryScore) return false;
-            if (visScore < minVisionScore) return false;
-          }
+          if (visScore < minVisionScore) return false;
+        }
+      } else {
+        // Tab ALL
+        if (filterMode === "WA_ONLY") {
+          if (waScore < minWaScore) return false;
+        } else {
+          if (curScore < minCurrentScore) return false;
+          if (histScore < minHistoryScore) return false;
+          if (visScore < minVisionScore) return false;
         }
       }
 
@@ -1767,9 +1854,80 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
         if (ltpVal > Number(maxPriceFilter)) return false;
       }
 
+      // ===== SMART FILTERS (evaluated on immutable recommendation-time trigger snapshot) =====
+      if (smartFilters.targetIn5DRange) {
+        const h5d = Number((t as any).trigger_high_5d || (t as any).high_5d || 0);
+        const tgt = Number(t.target_price || 0);
+        // Only filter if we actually have 5D high data
+        if (h5d > 0 && tgt > 0 && tgt > h5d) return false;
+      }
+      if (smartFilters.buyersDominant) {
+        // Evaluate immutable recommendation-time snapshot first
+        const trigDom = (t as any).trigger_buyers_dominant;
+        if (trigDom !== undefined) {
+          if (!trigDom) return false;
+        } else {
+          const bidQ = Number((t as any).bid_qty || (t as any).buy_quantity || (t as any).total_buy_qty || 0);
+          const askQ = Number((t as any).ask_qty || (t as any).sell_quantity || (t as any).total_sell_qty || 0);
+          // Only filter if we have both bid AND ask data (both > 0)
+          if (bidQ > 0 && askQ > 0 && bidQ <= askQ) return false;
+          // If only ask exists but no bid, filter out (pure sell pressure)
+          if (bidQ === 0 && askQ > 0) return false;
+        }
+      }
+      if (smartFilters.minBuyVolume) {
+        const buyVol = Number((t as any).trigger_buy_volume ?? (t as any).buy_quantity ?? (t as any).bid_qty ?? (t as any).total_buy_qty ?? 0);
+        if (buyVol < smartFilters.minBuyVolumeVal) return false;
+      }
+      if (smartFilters.aboveVwap) {
+        // Evaluate immutable recommendation-time snapshot first
+        const trigVwap = (t as any).trigger_above_vwap;
+        if (trigVwap !== undefined) {
+          if (!trigVwap) return false;
+        } else {
+          const vwapVal = Number((t as any).vwap || 0);
+          const curLtp = Number((t as any).ltp || (t as any).current_price || t.entry_price || 0);
+          // Only filter if VWAP data exists
+          if (vwapVal > 0 && curLtp > 0 && curLtp < vwapVal) return false;
+        }
+      }
+      if (smartFilters.nearDayHigh) {
+        const trigDist = (t as any).trigger_day_high_dist_pct;
+        if (trigDist !== undefined) {
+          if (Number(trigDist) > smartFilters.nearDayHighPct) return false;
+        } else {
+          const dh = Number((t as any).day_high || 0);
+          const curLtp2 = Number((t as any).ltp || (t as any).current_price || t.entry_price || 0);
+          if (dh > 0 && curLtp2 > 0) {
+            const distPct = ((dh - curLtp2) / curLtp2) * 100;
+            if (distPct > smartFilters.nearDayHighPct) return false;
+          }
+        }
+      }
+      if (smartFilters.minWinRate) {
+        const wr = (t as any).win_rate !== undefined ? Number((t as any).win_rate) : -1;
+        // Only filter if we have actual win_rate data
+        if (wr >= 0 && wr < smartFilters.minWinRateVal) return false;
+      }
+      if (smartFilters.lowTrapRate) {
+        const tr = (t as any).bull_trap_pct !== undefined ? Number((t as any).bull_trap_pct) : -1;
+        // Only filter if we have actual trap rate data
+        if (tr >= 0 && tr > smartFilters.lowTrapRateVal) return false;
+      }
+      if (smartFilters.minRankScore) {
+        const rs = (t as any).rank_score !== undefined ? Number((t as any).rank_score) : -1;
+        // Only filter if we have actual rank score data
+        if (rs >= 0 && rs < smartFilters.minRankScoreVal) return false;
+      }
+
+      // Dynamic Filter Studio Engine Evaluation (Multi-Bucket AND/OR Logic)
+      if (dynamicFilterConfig.enabled && !matchesDynamicFilter(t, dynamicFilterConfig)) {
+        return false;
+      }
+
       return true;
     });
-  }, [allCurrentTrades, minCurrentScore, minHistoryScore, minVisionScore, minWaScore, filterMode, sessionFilter, searchQuery, sectorFilter, marketCapFilter, vaultFilter, stageFilter, minPriceFilter, maxPriceFilter]);
+  }, [allCurrentTrades, minCurrentScore, minHistoryScore, minVisionScore, minWaScore, filterMode, sessionFilter, searchQuery, sectorFilter, marketCapFilter, vaultFilter, stageFilter, minPriceFilter, maxPriceFilter, smartFilters, dynamicFilterConfig]);
 
   // Status & outcome summary counts based on baseScoreQualifiedTrades
   const statusCounts = useMemo(() => {
@@ -1836,9 +1994,19 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
         return true;
       })
       .sort((a, b) => {
+        const secA = parseSignalSeconds(a.trigger_time);
+        const secB = parseSignalSeconds(b.trigger_time);
         if (sortOrder === "LATEST_FIRST") {
+          if (secA >= 0 && secB >= 0 && secA !== secB) return secB - secA;
+          const timeA = Number(a.created_at || 0);
+          const timeB = Number(b.created_at || 0);
+          if (timeA && timeB && Math.abs(timeB - timeA) >= 1) return timeB - timeA;
           return (b.trigger_time || "").localeCompare(a.trigger_time || "");
         } else {
+          if (secA >= 0 && secB >= 0 && secA !== secB) return secA - secB;
+          const timeA = Number(a.created_at || 0);
+          const timeB = Number(b.created_at || 0);
+          if (timeA && timeB && Math.abs(timeA - timeB) >= 1) return timeA - timeB;
           return (a.trigger_time || "").localeCompare(b.trigger_time || "");
         }
       });
@@ -1933,7 +2101,14 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
     raw_score: (item as any).raw_points ?? Math.round((item.score_100 / 100) * 57),
     max_raw_score: 57,
     lot_size: 1,
-    is_mainboard_verified: true
+    is_mainboard_verified: true,
+    volume: Number((item as any).volume || 0),
+    trigger_rvol: item.trigger_rvol ?? (item as any).rvol,
+    trigger_time: item.trigger_time ?? safeTime,
+    trigger_session: item.trigger_session,
+    is_guardrails_passed: item.is_guardrails_passed ?? true,
+    is_priority_passed: item.is_priority_passed ?? true,
+    why_buy_reasons: item.why_buy_reasons || []
   };
 };
 
@@ -2075,10 +2250,6 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                       type="button"
                       onClick={() => {
                         setIsDatePickerOpen(prev => !prev);
-                        setIsSegmentPopoverOpen(false);
-                        setIsPricePopoverOpen(false);
-                        setIsStatusPopoverOpen(false);
-                        setIsSessionPopoverOpen(false);
                       }}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-white border border-slate-200/90 hover:border-indigo-400 text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer group"
                       title="Click to select historical trading session"
@@ -2089,20 +2260,31 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                       <div className="flex items-baseline gap-1 text-left">
                         <span className="text-[10px] text-slate-400 uppercase font-semibold">Session:</span>
                         <span className="font-mono text-xs font-bold text-slate-900">
-                          {selectedDate === "TODAY" ? "Today (Live)" : formatSessionDate(selectedDate).full}
+                          {(() => {
+                            const nowD = new Date();
+                            const todayStr = `${String(nowD.getDate()).padStart(2, '0')}.${String(nowD.getMonth() + 1).padStart(2, '0')}.${nowD.getFullYear()}`;
+                            const todayIso = nowD.toISOString().slice(0, 10);
+                            if (selectedDate === "TODAY" || selectedDate === todayIso) {
+                              return isMarketLive ? `Today (${todayStr} · Live)` : `Today ${todayStr} (Market Closed)`;
+                            }
+                            if (selectedDate > todayIso) {
+                              return `Tomorrow (${formatSessionDate(selectedDate).date} · Not Open)`;
+                            }
+                            return formatSessionDate(selectedDate).full;
+                          })()}
                         </span>
                       </div>
                       <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDatePickerOpen ? "rotate-180 text-indigo-600" : ""}`} />
                     </button>
 
                     {isDatePickerOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="absolute right-0 top-full mt-2 w-76 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
                           <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
                             <Calendar className="w-3.5 h-3.5 text-indigo-600" />
                             <span>Market Sessions</span>
                           </div>
-                          <span className="text-[10px] font-semibold text-slate-400">Actual Sessions</span>
+                          <span className="text-[10px] font-semibold text-slate-400">Actual Sessions (No Sim)</span>
                         </div>
 
                         <div className="space-y-1 max-h-60 overflow-y-auto">
@@ -2120,16 +2302,19 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                             }`}
                           >
                             <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isMarketLive ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"}`} />
-                              <span>Today ({isMarketLive ? "Live Streaming" : "Standby"})</span>
+                              <span className={`w-2 h-2 rounded-full ${isMarketLive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                              <span>Today ({isMarketLive ? "Live Streaming" : "21.09.2026 · Market Closed"})</span>
                             </div>
                             {selectedDate === "TODAY" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                           </button>
 
-                          {availableDates.map((d, index) => {
+                          {availableDates
+                            .filter(d => d !== new Date().toISOString().slice(0, 10))
+                            .map((d, index) => {
                             const info = formatSessionDate(d);
                             const isSelected = selectedDate === d;
-                            const isLatest = index === 0;
+                            const todayIso = new Date().toISOString().slice(0, 10);
+                            const isFuture = d > todayIso;
                             return (
                               <button
                                 key={d}
@@ -2147,16 +2332,20 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                               >
                                 <div className="flex items-center gap-2">
                                   <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                                    isSelected ? "bg-indigo-200/80 text-indigo-900" : "bg-slate-100 text-slate-600"
+                                    isFuture ? "bg-amber-100 text-amber-800" : isSelected ? "bg-indigo-200/80 text-indigo-900" : "bg-slate-100 text-slate-600"
                                   }`}>
-                                    {info.day}
+                                    {isFuture ? "PRE-OPEN" : info.day}
                                   </span>
                                   <span className="font-mono text-xs text-slate-800">{info.date}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  {isLatest && (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                      Latest
+                                  {isFuture ? (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                      Tomorrow
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                      Actual Recorded
                                     </span>
                                   )}
                                   {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
@@ -2206,1281 +2395,164 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
               </div>
             </div>
 
-        {/* Global Focused Backdrop Blur Overlay for Active Filter Popovers */}
-        {(isDatePickerOpen || isSegmentPopoverOpen || isPricePopoverOpen || isStatusPopoverOpen || isStagePopoverOpen || isSessionPopoverOpen) && (
+        {/* Global Focused Backdrop Blur Overlay for Calendar Date Picker */}
+        {isDatePickerOpen && (
           <div
             className="fixed inset-0 bg-slate-900/35 backdrop-blur-xs z-40 transition-opacity duration-150 animate-in fade-in"
             onClick={() => {
               setIsDatePickerOpen(false);
-              setIsSegmentPopoverOpen(false);
-              setIsPricePopoverOpen(false);
-              setIsStatusPopoverOpen(false);
-              setIsStagePopoverOpen(false);
-              setIsSessionPopoverOpen(false);
             }}
           />
         )}
 
-        {/* ROW 1: THE 5 FILTERS (Search, Segment, Price, Session Timing, Status) + CARDS/TABLE TOGGLE */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-                {/* Search Input */}
-                <div className="relative w-full sm:w-60 shrink-0">
-                  <Search className="w-3.5 h-3.5 absolute left-3.5 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search symbol or company..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Focused Background Blur Overlay for Active Filter Popovers */}
-                {(isSegmentPopoverOpen || isPricePopoverOpen || isStatusPopoverOpen) && (
-                  <div
-                    className="fixed inset-0 bg-slate-900/35 backdrop-blur-xs z-40 transition-opacity duration-150 animate-in fade-in"
-                    onClick={() => {
-                      setIsSegmentPopoverOpen(false);
-                      setIsPricePopoverOpen(false);
-                      setIsStatusPopoverOpen(false);
-                    }}
-                  />
-                )}
-
-                {/* Smart Segment Filter with Popover & Live Counts */}
-                <div className={`relative shrink-0 ${isSegmentPopoverOpen ? "z-50" : "z-20"}`} ref={segmentPopoverRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSegmentPopoverOpen(prev => !prev);
-                      setIsPricePopoverOpen(false);
-                      setIsStatusPopoverOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border cursor-pointer select-none ${
-                      marketCapFilter !== "ALL"
-                        ? "bg-amber-50 text-amber-950 border-amber-300 font-bold shadow-2xs"
-                        : "bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200"
-                    }`}
-                    title="Filter recommendations by market cap segment"
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{marketCapFilter === "ALL" ? "Segment: All" : `${marketCapFilter} Cap`}</span>
-                    {marketCapFilter !== "ALL" ? (
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMarketCapFilter("ALL");
-                        }}
-                        className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                        title="Reset to All Segments"
-                      >
-                        ✕
-                      </span>
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </button>
-
-                  {/* Segment Popover Card */}
-                  {isSegmentPopoverOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <span className="text-xs font-bold text-slate-800">
-                          Market Cap Segment
-                        </span>
-                        {marketCapFilter !== "ALL" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMarketCapFilter("ALL");
-                              setIsSegmentPopoverOpen(false);
-                            }}
-                            className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-1">
-                        {[
-                          { id: "ALL", label: "All Segments", icon: "🌐", count: segmentCounts.all },
-                          { id: "Large", label: "Large Cap", icon: "🏢", count: segmentCounts.large },
-                          { id: "Mid", label: "Mid Cap", icon: "🏗️", count: segmentCounts.mid },
-                          { id: "Small", label: "Small Cap", icon: "🏠", count: segmentCounts.small },
-                          { id: "Micro", label: "Micro Cap", icon: "🔬", count: segmentCounts.micro },
-                        ].map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setMarketCapFilter(item.id);
-                              setIsSegmentPopoverOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                              marketCapFilter === item.id
-                                ? "bg-amber-50/80 border-amber-200 text-amber-950 font-bold shadow-2xs"
-                                : "border-transparent hover:bg-slate-50 text-slate-700"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{item.icon}</span>
-                              <span className="text-xs font-medium">{item.label}</span>
-                            </div>
-                            <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
-                              item.count > 0 ? "bg-slate-100 text-slate-700" : "bg-slate-50 text-slate-400"
-                            }`}>
-                              {item.count}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Compact Price Filter with Popup (Moved near search) */}
-                <div className={`relative shrink-0 ${isPricePopoverOpen ? "z-50" : "z-20"}`} ref={pricePopoverRef}>
-                  <button
-                    type="button"
-                    onClick={handleOpenPricePopover}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border cursor-pointer select-none ${
-                      (minPriceFilter !== "" || maxPriceFilter !== "")
-                        ? "bg-violet-50 text-violet-900 border-violet-300 font-bold shadow-2xs"
-                        : "bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200"
-                    }`}
-                    title="Filter recommendations by stock price (LTP)"
-                  >
-                    <span>₹ Price</span>
-                    {(minPriceFilter !== "" || maxPriceFilter !== "") ? (
-                      <span className="inline-flex items-center gap-1 bg-violet-200/80 text-violet-950 font-bold px-1.5 py-0.2 rounded text-[11px]">
-                        {minPriceFilter && maxPriceFilter
-                          ? `₹${minPriceFilter} - ₹${maxPriceFilter}`
-                          : minPriceFilter
-                          ? `≥ ₹${minPriceFilter}`
-                          : `≤ ₹${maxPriceFilter}`}
-                        <span
-                          onClick={handleClearPriceFilter}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Clear Price Filter"
-                        >
-                          ✕
-                        </span>
-                      </span>
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </button>
-
-                  {/* Popover Card */}
-                  {isPricePopoverOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <span className="text-xs font-bold text-slate-800">
-                          Filter by Stock Price (LTP)
-                        </span>
-                        {(minPriceFilter !== "" || maxPriceFilter !== "") && (
-                          <button
-                            type="button"
-                            onClick={handleClearPriceFilter}
-                            className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Quick Presets */}
-                      <div className="py-2.5">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                          Quick Presets
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {[
-                            { label: "Under ₹200", min: "", max: "200" },
-                            { label: "₹200 - ₹500", min: "200", max: "500" },
-                            { label: "₹500 - ₹1,000", min: "500", max: "1000" },
-                            { label: "Above ₹1,000", min: "1000", max: "" }
-                          ].map((p, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => handleApplyPriceFilter(p.min, p.max)}
-                              className="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 border border-slate-200 rounded-lg text-center transition-colors cursor-pointer"
-                            >
-                              {p.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Custom Range Inputs */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                          Custom Range (₹)
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <input
-                              type="number"
-                              placeholder="Min ₹"
-                              value={tempMinPrice}
-                              onChange={(e) => setTempMinPrice(e.target.value)}
-                              className="w-full text-center border rounded-lg px-2 py-1 text-xs font-mono font-bold bg-slate-50 focus:bg-white border-slate-200 focus:border-violet-500 focus:outline-none"
-                            />
-                          </div>
-                          <span className="text-slate-400 text-xs font-bold">to</span>
-                          <div className="flex-1">
-                            <input
-                              type="number"
-                              placeholder="Max ₹"
-                              value={tempMaxPrice}
-                              onChange={(e) => setTempMaxPrice(e.target.value)}
-                              className="w-full text-center border rounded-lg px-2 py-1 text-xs font-mono font-bold bg-slate-50 focus:bg-white border-slate-200 focus:border-violet-500 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-3">
-                          <button
-                            type="button"
-                            onClick={() => handleApplyPriceFilter()}
-                            className="flex-1 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
-                          >
-                            Apply Filter
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsPricePopoverOpen(false)}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold cursor-pointer transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. Session Timing Dropdown (All Day, Morning, Midday, Power Hour) */}
-                <div className={`relative shrink-0 ${isSessionPopoverOpen ? "z-50" : "z-20"}`} ref={sessionPopoverRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSessionPopoverOpen(prev => !prev);
-                      setIsSegmentPopoverOpen(false);
-                      setIsPricePopoverOpen(false);
-                      setIsStatusPopoverOpen(false);
-                      setIsDatePickerOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border cursor-pointer select-none ${
-                      sessionFilter === "MORNING"
-                        ? "bg-sky-50 text-sky-950 border-sky-300 font-bold shadow-2xs"
-                        : sessionFilter === "MIDDAY"
-                        ? "bg-amber-50 text-amber-950 border-amber-300 font-bold shadow-2xs"
-                        : sessionFilter === "POWER_HOUR"
-                        ? "bg-purple-50 text-purple-950 border-purple-300 font-bold shadow-2xs"
-                        : "bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200"
-                    }`}
-                    title="Filter recommendations by intraday market session timing"
-                  >
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span>
-                      {sessionFilter === "ALL" && "Session: All Day"}
-                      {sessionFilter === "MORNING" && "🌅 Morning"}
-                      {sessionFilter === "MIDDAY" && "☀️ Midday"}
-                      {sessionFilter === "POWER_HOUR" && "⚡ Power Hour"}
-                    </span>
-                    {sessionFilter !== "ALL" ? (
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSessionFilter("ALL");
-                        }}
-                        className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                        title="Reset to All Day"
-                      >
-                        ✕
-                      </span>
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </button>
-
-                  {isSessionPopoverOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <span className="text-xs font-bold text-slate-800">
-                          Intraday Session Timing
-                        </span>
-                        {sessionFilter !== "ALL" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSessionFilter("ALL");
-                              setIsSessionPopoverOpen(false);
-                            }}
-                            className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-1">
-                        {[
-                          { id: "ALL" as const, label: "All Day", desc: "09:15 - 15:30 IST", icon: "🌐" },
-                          { id: "MORNING" as const, label: "Morning Breakout", desc: "09:15 - 11:30 IST", icon: "🌅" },
-                          { id: "MIDDAY" as const, label: "Midday Consolidation", desc: "11:30 - 13:45 IST", icon: "☀️" },
-                          { id: "POWER_HOUR" as const, label: "Power Hour Sweep", desc: "13:45 - 15:30 IST", icon: "⚡" },
-                        ].map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setSessionFilter(item.id);
-                              setIsSessionPopoverOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                              sessionFilter === item.id
-                                ? "bg-indigo-50/80 border-indigo-200 text-indigo-950 font-bold shadow-2xs"
-                                : "border-transparent hover:bg-slate-50 text-slate-700"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{item.icon}</span>
-                              <div>
-                                <div className="text-xs font-semibold">{item.label}</div>
-                                <div className="text-[10px] text-slate-400 font-normal">{item.desc}</div>
-                              </div>
-                            </div>
-                            {sessionFilter === item.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* MICHPA Progressive Audit Stage Filter Dropdown */}
-                <div className={`relative shrink-0 ${isStagePopoverOpen ? "z-50" : "z-20"}`} ref={stagePopoverRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsStagePopoverOpen(prev => !prev);
-                      setIsStatusPopoverOpen(false);
-                      setIsSessionPopoverOpen(false);
-                      setIsPricePopoverOpen(false);
-                      setIsSegmentPopoverOpen(false);
-                      setIsDatePickerOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border cursor-pointer select-none ${
-                      stageFilter === "KNOCKOUT_PASSED"
-                        ? "bg-slate-900 text-white border-slate-900 font-bold shadow-2xs"
-                        : stageFilter === "CURRENT_PASSED"
-                        ? "bg-indigo-50 text-indigo-900 border-indigo-300 font-bold shadow-2xs"
-                        : stageFilter === "HISTORY_PASSED"
-                        ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-bold shadow-2xs"
-                        : stageFilter === "PRIORITY_PASSED"
-                        ? "bg-violet-50 text-violet-900 border-violet-300 font-bold shadow-2xs"
-                        : stageFilter === "AI_PASSED"
-                        ? "bg-amber-50 text-amber-900 border-amber-300 font-bold shadow-2xs"
-                        : "bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200"
-                    }`}
-                    title="Filter recommendations by progressive MICHPA audit stage: Knockout, Current, History, Priority, AI"
-                  >
-                    {stageFilter === "ALL" && (
-                      <>
-                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Stage: All</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                      </>
-                    )}
-                    {stageFilter === "KNOCKOUT_PASSED" && (
-                      <>
-                        <ShieldCheck className="w-3.5 h-3.5 text-white" />
-                        <span>Knockout ({stageCounts.knockout})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStageFilter("ALL");
-                          }}
-                          className="hover:text-rose-400 font-black ml-0.5 cursor-pointer text-white/80"
-                          title="Reset to All Stages"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {stageFilter === "CURRENT_PASSED" && (
-                      <>
-                        <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-                        <span>Current ({stageCounts.current})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStageFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Stages"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {stageFilter === "HISTORY_PASSED" && (
-                      <>
-                        <BarChart3 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>History ({stageCounts.history})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStageFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Stages"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {stageFilter === "PRIORITY_PASSED" && (
-                      <>
-                        <Zap className="w-3.5 h-3.5 text-violet-600 fill-violet-600" />
-                        <span>Priority ({stageCounts.priority})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStageFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Stages"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {stageFilter === "AI_PASSED" && (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
-                        <span>AI ({stageCounts.ai})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStageFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Stages"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Smart Stage Popover Card */}
-                  {isStagePopoverOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-1.5">
-                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                          <span className="text-xs font-bold text-slate-800">
-                            MICHPA Audit Stages
-                          </span>
-                        </div>
-                        {stageFilter !== "ALL" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStageFilter("ALL");
-                              setIsStagePopoverOpen(false);
-                            }}
-                            className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
-                          >
-                            Reset to All
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {/* All Stages */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("ALL");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "ALL"
-                              ? "bg-indigo-50/70 border-indigo-200 text-indigo-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-slate-50 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-                              <Layers className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold truncate">All Stages</div>
-                              <div className="text-[10px] text-slate-400 font-normal">Show all qualified setups</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
-                            {stageCounts.all}
-                          </span>
-                        </button>
-
-                        {/* Knockout Passed */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("KNOCKOUT_PASSED");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "KNOCKOUT_PASSED"
-                              ? "bg-slate-900 border-slate-900 text-white font-bold shadow-2xs"
-                              : "border-transparent hover:bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${stageFilter === "KNOCKOUT_PASSED" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-700"}`}>
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className={`text-xs font-bold truncate ${stageFilter === "KNOCKOUT_PASSED" ? "text-white" : "text-slate-900"}`}>Knockout Passed</div>
-                              <div className={`text-[10px] font-normal ${stageFilter === "KNOCKOUT_PASSED" ? "text-slate-300" : "text-slate-500"}`}>Pillar I: Zero circuit or liquidity traps</div>
-                            </div>
-                          </div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${stageFilter === "KNOCKOUT_PASSED" ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-700"}`}>
-                            {stageCounts.knockout}
-                          </span>
-                        </button>
-
-                        {/* Current Passed */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("CURRENT_PASSED");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "CURRENT_PASSED"
-                              ? "bg-indigo-50/80 border-indigo-300 text-indigo-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-indigo-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
-                              <Zap className="w-3.5 h-3.5 fill-indigo-700" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-indigo-950 truncate">Current Passed</div>
-                              <div className="text-[10px] text-indigo-700 font-medium">Pillar C: Morning Shield + 19 live indicators</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-indigo-100 text-indigo-800">
-                            {stageCounts.current}
-                          </span>
-                        </button>
-
-                        {/* History Passed */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("HISTORY_PASSED");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "HISTORY_PASSED"
-                              ? "bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-emerald-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
-                              <BarChart3 className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-emerald-950 truncate">History Passed</div>
-                              <div className="text-[10px] text-emerald-700 font-medium">Pillar H: 12 backtest probability rules</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-emerald-100 text-emerald-800">
-                            {stageCounts.history}
-                          </span>
-                        </button>
-
-                        {/* Priority Passed */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("PRIORITY_PASSED");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "PRIORITY_PASSED"
-                              ? "bg-violet-50/80 border-violet-300 text-violet-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-violet-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-violet-700 shrink-0">
-                              <Zap className="w-3.5 h-3.5 fill-violet-700" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-violet-950 truncate">Priority Passed</div>
-                              <div className="text-[10px] text-violet-700 font-medium">Pillar P: Timing trigger & Priority Allocator</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-violet-100 text-violet-800">
-                            {stageCounts.priority}
-                          </span>
-                        </button>
-
-                        {/* AI Passed */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStageFilter("AI_PASSED");
-                            setIsStagePopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            stageFilter === "AI_PASSED"
-                              ? "bg-amber-50/80 border-amber-300 text-amber-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-amber-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-                              <Sparkles className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-amber-950 truncate">AI Passed</div>
-                              <div className="text-[10px] text-amber-700 font-medium">Pillar A: Gemini 2.5 Flash Vision audited</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-amber-100 text-amber-800">
-                            {stageCounts.ai}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Smart & Attractive Outcome Filter */}
-                <div className={`relative shrink-0 ${isStatusPopoverOpen ? "z-50" : "z-20"}`} ref={statusPopoverRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsStatusPopoverOpen(prev => !prev);
-                      setIsStagePopoverOpen(false);
-                      setIsSessionPopoverOpen(false);
-                      setIsPricePopoverOpen(false);
-                      setIsSegmentPopoverOpen(false);
-                      setIsDatePickerOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border cursor-pointer select-none ${
-                      statusFilter === "TARGET_HIT"
-                        ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-bold shadow-2xs"
-                        : statusFilter === "STOP_LOSS"
-                        ? "bg-rose-50 text-rose-900 border-rose-300 font-bold shadow-2xs"
-                        : statusFilter === "OPEN"
-                        ? "bg-blue-50 text-blue-900 border-blue-300 font-bold shadow-2xs"
-                        : statusFilter === "SQUARED_OFF"
-                        ? "bg-amber-50 text-amber-900 border-amber-300 font-bold shadow-2xs"
-                        : statusFilter === "WA_80"
-                        ? "bg-purple-50 text-purple-900 border-purple-300 font-bold shadow-2xs"
-                        : "bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200"
-                    }`}
-                    title="Filter recommendations by execution outcome: Target, Stop Loss, Open, Squared Off"
-                  >
-                    {statusFilter === "ALL" && (
-                      <>
-                        <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Outcome: All</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                      </>
-                    )}
-                    {statusFilter === "TARGET_HIT" && (
-                      <>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>🎯 Target ({statusCounts.targetHit})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Outcomes"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {statusFilter === "STOP_LOSS" && (
-                      <>
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                        <span>🛡️ Stop Loss ({statusCounts.stopLoss})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Outcomes"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {statusFilter === "OPEN" && (
-                      <>
-                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                        <span>⚡ Open ({statusCounts.openTrades})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Outcomes"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {statusFilter === "SQUARED_OFF" && (
-                      <>
-                        <span className="w-2 h-2 rounded-full bg-amber-500" />
-                        <span>📦 Squared Off ({statusCounts.squaredOff})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Outcomes"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                    {statusFilter === "WA_80" && (
-                      <>
-                        <span className="w-2 h-2 rounded-full bg-purple-500" />
-                        <span>⚡ WA ≥ 80% ({statusCounts.wa80})</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusFilter("ALL");
-                          }}
-                          className="hover:text-rose-600 font-black ml-0.5 cursor-pointer"
-                          title="Reset to All Outcomes"
-                        >
-                          ✕
-                        </span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Smart Outcome Popover Card */}
-                  {isStatusPopoverOpen && (
-                    <div className="absolute top-full left-0 mt-1.5 w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-1.5">
-                          <Activity className="w-3.5 h-3.5 text-indigo-600" />
-                          <span className="text-xs font-bold text-slate-800">
-                            Trade Execution Outcomes
-                          </span>
-                        </div>
-                        {statusFilter !== "ALL" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStatusFilter("ALL");
-                              setIsStatusPopoverOpen(false);
-                            }}
-                            className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
-                          >
-                            Reset to All
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Options */}
-                      <div className="space-y-1.5">
-                        {/* All Statuses */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("ALL");
-                            setIsStatusPopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            statusFilter === "ALL"
-                              ? "bg-indigo-50/70 border-indigo-200 text-indigo-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-slate-50 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-                              <Layers className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold truncate">All Statuses</div>
-                              <div className="text-[10px] text-slate-400 font-normal">Show all qualified setups</div>
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
-                            {statusCounts.all}
-                          </span>
-                        </button>
-
-                        {/* Target Achieved */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("TARGET_HIT");
-                            setIsStatusPopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            statusFilter === "TARGET_HIT"
-                              ? "bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-emerald-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 font-bold text-xs">
-                              🎯
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-emerald-950 truncate">Target Achieved</div>
-                              <div className="text-[10px] text-emerald-700 font-medium">+1.30% Frozen Profit (Bulls Eye)</div>
-                            </div>
-                          </div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                            statusCounts.targetHit > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-400"
-                          }`}>
-                            {statusCounts.targetHit}
-                          </span>
-                        </button>
-
-                        {/* Stop Loss */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("STOP_LOSS");
-                            setIsStatusPopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            statusFilter === "STOP_LOSS"
-                              ? "bg-rose-50/80 border-rose-300 text-rose-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-rose-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700 shrink-0 font-bold text-xs">
-                              🛡️
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-rose-950 truncate">Stop Loss Hit</div>
-                              <div className="text-[10px] text-rose-700 font-medium">-0.80% Capital Protected (Bear Exit)</div>
-                            </div>
-                          </div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                            statusCounts.stopLoss > 0 ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-400"
-                          }`}>
-                            {statusCounts.stopLoss}
-                          </span>
-                        </button>
-
-                        {/* Open Trades */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("OPEN");
-                            setIsStatusPopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            statusFilter === "OPEN"
-                              ? "bg-blue-50/80 border-blue-300 text-blue-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-blue-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 font-bold text-xs">
-                              ⚡
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-blue-950 truncate">Open Trades</div>
-                              <div className="text-[10px] text-blue-700 font-medium">Position live & tracking market ticks</div>
-                            </div>
-                          </div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                            statusCounts.openTrades > 0 ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-400"
-                          }`}>
-                            {statusCounts.openTrades}
-                          </span>
-                        </button>
-
-                        {/* Squared Off */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("SQUARED_OFF");
-                            setIsStatusPopoverOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                            statusFilter === "SQUARED_OFF"
-                              ? "bg-amber-50/80 border-amber-300 text-amber-950 font-bold shadow-2xs"
-                              : "border-transparent hover:bg-amber-50/40 text-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 font-bold text-xs">
-                              📦
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-amber-950 truncate">Squared Off</div>
-                              <div className="text-[10px] text-amber-700 font-medium">EOD 03:15 PM or Session Exited</div>
-                            </div>
-                          </div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                            statusCounts.squaredOff > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-400"
-                          }`}>
-                            {statusCounts.squaredOff}
-                          </span>
-                        </button>
-
-                        {/* Divider for Conviction */}
-                        <div className="pt-1.5 border-t border-slate-100">
-                          <div className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
-                            Conviction Gate
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStatusFilter("WA_80");
-                              setIsStatusPopoverOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer border ${
-                              statusFilter === "WA_80"
-                                ? "bg-purple-50/80 border-purple-300 text-purple-950 font-bold shadow-2xs"
-                                : "border-transparent hover:bg-purple-50/40 text-slate-700"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-6 h-6 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 font-bold text-xs">
-                                🔥
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-xs font-bold text-purple-950 truncate">WA ≥ 80% Conviction</div>
-                                <div className="text-[10px] text-purple-700 font-medium">High Institutional Edge (Score ≥ 80%)</div>
-                              </div>
-                            </div>
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                              statusCounts.wa80 > 0 ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-400"
-                            }`}>
-                              {statusCounts.wa80}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {/* View Mode Toggle: Cards vs Table */}
-                <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/80 border border-slate-200/70 shadow-2xs shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("CARDS")}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                      viewMode === "CARDS"
-                        ? "bg-white text-slate-900 shadow-xs font-bold"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    title="3-Column Card View"
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    <span>Cards</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("TABLE")}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                      viewMode === "TABLE"
-                        ? "bg-white text-slate-900 shadow-xs font-bold"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    title="Dense Table View"
-                  >
-                    <List className="w-3.5 h-3.5" />
-                    <span>Table</span>
-                  </button>
-                </div>
-              </div>
+        {/* STRICT 1-ROW TOOLBAR: ALL CONTROLS IN A SINGLE HORIZONTAL LINE */}
+        <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-slate-100 flex-nowrap w-full overflow-x-auto scrollbar-none">
+          {/* Left Side: Search + Dynamic Filter Studio + Sort + View Mode */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
+            {/* Search Input */}
+            <div className="relative w-36 sm:w-44 lg:w-52 shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search symbol..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shrink-0"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* ROW 2: SCREENSHOT 2 (MIN SCORE GATE FILTERS + FILTERED RETURN KPI) */}
-            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap text-xs bg-slate-50 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
-                {/* 3 Pillars vs WA Only Toggle — only provided for ALL and AI_PASSED tabs */}
-                {(stageFilter === "ALL" || stageFilter === "AI_PASSED") && (
-                  <div className="flex items-center bg-slate-200/60 rounded-lg p-0.5 mr-1 animate-in fade-in duration-150">
-                    <button
-                      onClick={() => setFilterMode("3PILLARS")}
-                      className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer ${
-                        filterMode === "3PILLARS"
-                          ? "bg-white text-indigo-700 shadow-xs"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                      title="Filter by Current + History + AI Vision combined (AND logic)"
-                    >
-                      3 Pillars
-                    </button>
-                    <button
-                      onClick={() => setFilterMode("WA_ONLY")}
-                      className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer ${
-                        filterMode === "WA_ONLY"
-                          ? "bg-white text-purple-700 shadow-xs"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                      title="Filter by Weighted Average score alone"
-                    >
-                      WA Only
-                    </button>
-                  </div>
+            {/* The 1-Click Dynamic Filter Studio Button */}
+            <div className="inline-flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                id="btn-filter-studio"
+                onClick={() => setIsFilterStudioOpen(true)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap ${
+                  activeFilterRulesCount > 0
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-indigo-200 border border-indigo-500"
+                    : "bg-slate-50 hover:bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300"
+                }`}
+                title="Open Dynamic Filter Studio with Bucket & AND/OR logic builder"
+              >
+                <SlidersHorizontal className={`w-3.5 h-3.5 ${activeFilterRulesCount > 0 ? "text-amber-300" : "text-indigo-500"}`} />
+                <span>Filter Studio</span>
+                {activeFilterRulesCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black tracking-tight">
+                    {activeFilterRulesCount}
+                  </span>
                 )}
+              </button>
 
-                <span className="text-slate-600 font-bold text-[11px] pl-1 flex items-center gap-1">
-                  <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Min Score Gate:</span>
-                </span>
+              {activeFilterRulesCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDynamicFilterConfig({ ...DEFAULT_FILTER_CONFIG, enabled: false })}
+                  className="px-1.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                  title="Clear all active Filter Studio rules"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-                {/* Current Score Input (C) — shown when not in WA_ONLY mode */}
-                {(!["ALL", "AI_PASSED"].includes(stageFilter) || filterMode === "3PILLARS") && (
-                  <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg px-1.5 py-1 shadow-2xs animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { const v = Math.max(50, minCurrentScore - 5); setMinCurrentScore(v); setRawCurrentInput(String(v)); }}
-                      disabled={minCurrentScore <= 50}
-                      className={`text-[10px] font-bold px-1 py-0.5 rounded transition-colors ${
-                        minCurrentScore <= 50
-                          ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
-                      }`}
-                      title={minCurrentScore <= 50 ? "Cannot go below backend minimum (50%)" : "Decrease score floor"}
-                    >
-                      −5
-                    </button>
-                    <span className="font-bold text-indigo-700 text-[11px]">C:</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={rawCurrentInput}
-                      placeholder="50"
-                      onChange={(e) => setRawCurrentInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={() => commitScoreInput(rawCurrentInput, 50, setMinCurrentScore, setRawCurrentInput)}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawCurrentInput, 50, setMinCurrentScore, setRawCurrentInput); }}
-                      className="w-7 text-center font-mono font-bold text-slate-800 focus:outline-none text-xs"
-                    />
-                    <span className="text-slate-400 text-[10px]">%</span>
-                    <button
-                      onClick={() => { const v = Math.min(100, minCurrentScore + 5); setMinCurrentScore(v); setRawCurrentInput(String(v)); }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-1 py-0.5 rounded cursor-pointer"
-                      title="Increase score floor"
-                    >
-                      +5
-                    </button>
-                  </div>
-                )}
+            {/* Sort Order Toggle (Latest First vs Oldest First) */}
+            <button
+              type="button"
+              onClick={() => setSortOrder(prev => prev === "LATEST_FIRST" ? "OLDEST_FIRST" : "LATEST_FIRST")}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-white text-slate-700 hover:text-indigo-600 transition-all cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
+              title="Click to toggle between Latest Signal First and Oldest Signal First"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-indigo-500" />
+              <span>{sortOrder === "LATEST_FIRST" ? "Latest First" : "Oldest First"}</span>
+            </button>
 
-                {/* History Score Input (H) */}
-                {stageFilter !== "CURRENT_PASSED" && stageFilter !== "KNOCKOUT_PASSED" && (!["ALL", "AI_PASSED"].includes(stageFilter) || filterMode === "3PILLARS") && (
-                  <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg px-1.5 py-1 shadow-2xs animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { const v = Math.max(60, minHistoryScore - 5); setMinHistoryScore(v); setRawHistoryInput(String(v)); }}
-                      disabled={minHistoryScore <= 60}
-                      className={`text-[10px] font-bold px-1 py-0.5 rounded transition-colors ${
-                        minHistoryScore <= 60
-                          ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                      }`}
-                      title={minHistoryScore <= 60 ? "Cannot go below backend minimum (60%)" : "Decrease score floor"}
-                    >
-                      −5
-                    </button>
-                    <span className="font-bold text-emerald-700 text-[11px]">H:</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={rawHistoryInput}
-                      placeholder="60"
-                      onChange={(e) => setRawHistoryInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={() => commitScoreInput(rawHistoryInput, 60, setMinHistoryScore, setRawHistoryInput)}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawHistoryInput, 60, setMinHistoryScore, setRawHistoryInput); }}
-                      className="w-7 text-center font-mono font-bold text-slate-800 focus:outline-none text-xs"
-                    />
-                    <span className="text-slate-400 text-[10px]">%</span>
-                    <button
-                      onClick={() => { const v = Math.min(100, minHistoryScore + 5); setMinHistoryScore(v); setRawHistoryInput(String(v)); }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 px-1 py-0.5 rounded cursor-pointer"
-                      title="Increase score floor"
-                    >
-                      +5
-                    </button>
-                  </div>
-                )}
-
-                {/* AI Vision Score Input (A) — only shown for AI_PASSED and ALL (in 3PILLARS mode) */}
-                {(stageFilter === "ALL" || stageFilter === "AI_PASSED") && filterMode === "3PILLARS" && (
-                  <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg px-1.5 py-1 shadow-2xs animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { const v = Math.max(60, minVisionScore - 5); setMinVisionScore(v); setRawVisionInput(String(v)); }}
-                      disabled={minVisionScore <= 60}
-                      className={`text-[10px] font-bold px-1 py-0.5 rounded transition-colors ${
-                        minVisionScore <= 60
-                          ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-400 hover:text-violet-600 hover:bg-violet-50 cursor-pointer"
-                      }`}
-                      title={minVisionScore <= 60 ? "Cannot go below backend minimum (60%)" : "Decrease score floor"}
-                    >
-                      −5
-                    </button>
-                    <span className="font-bold text-violet-700 text-[11px]">A:</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={rawVisionInput}
-                      placeholder="60"
-                      onChange={(e) => setRawVisionInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={() => commitScoreInput(rawVisionInput, 60, setMinVisionScore, setRawVisionInput)}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawVisionInput, 60, setMinVisionScore, setRawVisionInput); }}
-                      className="w-7 text-center font-mono font-bold text-slate-800 focus:outline-none text-xs"
-                    />
-                    <span className="text-slate-400 text-[10px]">%</span>
-                    <button
-                      onClick={() => { const v = Math.min(100, minVisionScore + 5); setMinVisionScore(v); setRawVisionInput(String(v)); }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-violet-600 hover:bg-violet-50 px-1 py-0.5 rounded cursor-pointer"
-                      title="Increase score floor"
-                    >
-                      +5
-                    </button>
-                  </div>
-                )}
-
-                {/* WA Score Input — only shown for ALL or AI_PASSED in WA_ONLY mode */}
-                {(stageFilter === "ALL" || stageFilter === "AI_PASSED") && filterMode === "WA_ONLY" && (
-                  <div className="flex items-center gap-0.5 bg-white border border-purple-200 rounded-lg px-1.5 py-1 shadow-2xs animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { const v = Math.max(60, minWaScore - 5); setMinWaScore(v); setRawWaInput(String(v)); }}
-                      disabled={minWaScore <= 60}
-                      className={`text-[10px] font-bold px-1 py-0.5 rounded transition-colors ${
-                        minWaScore <= 60
-                          ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-400 hover:text-purple-600 hover:bg-purple-50 cursor-pointer"
-                      }`}
-                      title={minWaScore <= 60 ? "Cannot go below backend minimum (60%)" : "Decrease score floor"}
-                    >
-                      −5
-                    </button>
-                    <span className="font-bold text-purple-700 text-[11px]">WA:</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={rawWaInput}
-                      placeholder="60"
-                      onChange={(e) => setRawWaInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={() => commitScoreInput(rawWaInput, 60, setMinWaScore, setRawWaInput)}
-                      onKeyDown={(e) => { if (e.key === "Enter") commitScoreInput(rawWaInput, 60, setMinWaScore, setRawWaInput); }}
-                      className="w-7 text-center font-mono font-bold text-slate-800 focus:outline-none text-xs"
-                    />
-                    <span className="text-slate-400 text-[10px]">%</span>
-                    <button
-                      onClick={() => { const v = Math.min(100, minWaScore + 5); setMinWaScore(v); setRawWaInput(String(v)); }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-purple-600 hover:bg-purple-50 px-1 py-0.5 rounded cursor-pointer"
-                      title="Increase score floor"
-                    >
-                      +5
-                    </button>
-                  </div>
-                )}
-
-                {(minCurrentScore !== 50 || minHistoryScore !== 60 || minVisionScore !== 60 || minWaScore !== 60) && (
-                  <button
-                    onClick={() => {
-                      setMinCurrentScore(50); setRawCurrentInput("50");
-                      setMinHistoryScore(60); setRawHistoryInput("60");
-                      setMinVisionScore(60); setRawVisionInput("60");
-                      setMinWaScore(60); setRawWaInput("60");
-                    }}
-                    className="text-[10.5px] font-bold text-indigo-600 hover:text-indigo-800 underline px-1 cursor-pointer"
-                  >
-                    Reset Defaults
-                  </button>
-                )}
-              </div>
-
-              {/* Right Side: Dynamic Filtered Return KPI Badge & Qualified Count */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {loading ? (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500 shadow-2xs">
-                    <span className="text-[11px] font-semibold text-slate-400">Filtered Return:</span>
-                    <span className="font-mono text-xs text-slate-400 animate-pulse">Calculating...</span>
-                  </div>
-                ) : (
-                  <div className={`inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs ${
-                    performanceKPIs.netReturnPct >= 0
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                      : "bg-rose-50 text-rose-800 border-rose-200"
-                  }`}>
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className={`w-3.5 h-3.5 ${performanceKPIs.netReturnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`} />
-                      <span className="text-[11px] font-semibold text-slate-500">Filtered Return:</span>
-                      <span className={`font-mono text-sm font-black ${performanceKPIs.netReturnPct >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                        {performanceKPIs.netReturnPct >= 0 ? "+" : ""}{performanceKPIs.netReturnPct.toFixed(2)}%
-                      </span>
-                    </div>
-                    <span className="text-slate-300">|</span>
-                    <span className="text-slate-600 text-[11px] font-medium">
-                      {performanceKPIs.winRate}% Win ({performanceKPIs.wins}W / {performanceKPIs.losses}L)
-                    </span>
-                  </div>
-                )}
-
-                <div className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-3 h-3 text-indigo-500 animate-spin" />
-                      <span className="font-semibold text-indigo-700">Loading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>
-                        Showing <strong className="text-slate-900 font-bold">{filteredTrades.length}</strong> of {allCurrentTrades.length} qualified
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
+            {/* View Mode Toggle: Cards vs Table */}
+            <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-2xs shrink-0 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => setViewMode("CARDS")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none whitespace-nowrap ${
+                  viewMode === "CARDS"
+                    ? "bg-white text-slate-900 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="3-Column Card View"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("TABLE")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none whitespace-nowrap ${
+                  viewMode === "TABLE"
+                    ? "bg-white text-slate-900 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="Dense Table View"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
             </div>
           </div>
 
-          {loading ? (
+          {/* Right Side: Dynamic Filtered Return KPI Badge & Qualified Count */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto">
+            {loading ? (
+              <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500 shadow-2xs shrink-0 whitespace-nowrap">
+                <span className="text-[11px] font-semibold text-slate-400">Return:</span>
+                <span className="font-mono text-xs text-slate-400 animate-pulse">Calculating...</span>
+              </div>
+            ) : (
+              <div className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-bold shadow-2xs shrink-0 whitespace-nowrap ${
+                performanceKPIs.netReturnPct >= 0
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-rose-50 text-rose-800 border-rose-200"
+              }`}>
+                <div className="flex items-center gap-1">
+                  <TrendingUp className={`w-3.5 h-3.5 ${performanceKPIs.netReturnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`} />
+                  <span className="text-[11px] font-semibold text-slate-500">Return:</span>
+                  <span className={`font-mono text-xs font-black ${performanceKPIs.netReturnPct >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {performanceKPIs.netReturnPct >= 0 ? "+" : ""}{performanceKPIs.netReturnPct.toFixed(2)}%
+                  </span>
+                </div>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-600 text-[11px] font-medium">
+                  {performanceKPIs.winRate}% Win ({performanceKPIs.wins}W / {performanceKPIs.losses}L)
+                </span>
+              </div>
+            )}
+
+            <div className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 px-2.5 py-1.5 rounded-xl shadow-2xs shrink-0 whitespace-nowrap">
+              {loading ? (
+                <>
+                  <RefreshCw className="w-3 h-3 text-indigo-500 animate-spin shrink-0" />
+                  <span className="font-semibold text-indigo-700">Loading...</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span>
+                    Showing <strong className="text-slate-900 font-bold">{filteredTrades.length}</strong> of {allCurrentTrades.length}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+                {loading ? (
             <div className="bg-white rounded-2xl border border-slate-200/80 p-10 sm:p-14 shadow-xs text-center relative overflow-hidden">
               <div className="w-56 h-56 bg-indigo-200/20 rounded-full blur-3xl absolute -top-12 -left-12 pointer-events-none" />
               <div className="w-56 h-56 bg-emerald-200/20 rounded-full blur-3xl absolute -bottom-12 -right-12 pointer-events-none" />
@@ -3544,7 +2616,29 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
             <div>
               {filteredTrades.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 shadow-xs">
-                  <div className="text-sm font-semibold">No trade setups currently matching your criteria.</div>
+                  {selectedDate !== "TODAY" && selectedDate > new Date().toISOString().slice(0, 10) ? (
+                    <div className="max-w-md mx-auto">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                        <Clock className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 mb-1">Market is Not Open Yet</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Session for {selectedDate} has not commenced. Dalal Street trading begins at 09:15 AM IST.
+                      </p>
+                    </div>
+                  ) : selectedDate !== "TODAY" ? (
+                    <div className="max-w-md mx-auto">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                        <Calendar className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 mb-1">No Recorded Recommendations</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        No live recommendations were recorded for this session. (Offline simulations are strictly disabled).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-sm font-semibold">No trade setups currently matching your criteria.</div>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -3634,6 +2728,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                             buyQty,
                             sellQty,
                             buyPct,
+                            volume: Number((t as any).volume || (tradeObject as any).volume || 0),
                             sixBadges,
                             isTargetHit,
                             isStopHit,
@@ -3716,7 +2811,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                               ) : isSquaredOff ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold shadow-2xs">
                                   <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                                  <span>Squared Off</span>
+                                  <span>Squared Off @ 03:05 PM</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-[11px] font-bold shadow-2xs">
@@ -3836,6 +2931,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                                 buyQty,
                                 sellQty,
                                 buyPct,
+                                volume: Number((t as any).volume || (tradeObject as any).volume || 0),
                                 sixBadges,
                                 isTargetHit,
                                 isStopHit,
@@ -3909,8 +3005,20 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                     </tr>
                   ) : filteredTrades.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-500 whitespace-nowrap">
-                        No trade setups currently matching your criteria.
+                      <td colSpan={10} className="py-12 text-center text-slate-500">
+                        {selectedDate !== "TODAY" && selectedDate > new Date().toISOString().slice(0, 10) ? (
+                          <div className="inline-flex items-center justify-center gap-2">
+                            <Clock className="w-4 h-4 text-indigo-500 animate-pulse" />
+                            <span>Market is Not Open Yet for session {selectedDate}. Dalal Street trading commences at 09:15 AM IST.</span>
+                          </div>
+                        ) : selectedDate !== "TODAY" ? (
+                          <div className="inline-flex items-center justify-center gap-2">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span>No live recommendations were recorded for this session. (Strictly zero simulations).</span>
+                          </div>
+                        ) : (
+                          <span>No trade setups currently matching your criteria.</span>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -3974,6 +3082,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                               buyPct: (Number((t as any).buy_quantity || 0) + Number((t as any).sell_quantity || 0)) > 0
                                 ? Math.round((Number((t as any).buy_quantity || 0) / (Number((t as any).buy_quantity || 0) + Number((t as any).sell_quantity || 0))) * 100)
                                 : 50,
+                              volume: Number((t as any).volume || (tradeObject as any).volume || 0),
                               sixBadges,
                               isTargetHit,
                               isStopHit,
@@ -4171,7 +3280,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                             ) : isSquaredOff ? (
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 text-xs font-bold whitespace-nowrap shadow-2xs">
                                 <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <span className="whitespace-nowrap">Squared Off</span>
+                                <span className="whitespace-nowrap">Squared Off @ 03:05 PM</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-300 text-xs font-bold whitespace-nowrap shadow-2xs">
@@ -4223,6 +3332,18 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
             </div>
           </div>
         )}
+
+      {/* Dynamic Filter Studio Modal */}
+      <FilterStudioModal
+        isOpen={isFilterStudioOpen}
+        onClose={() => setIsFilterStudioOpen(false)}
+        config={dynamicFilterConfig}
+        onApply={(newConfig) => {
+          setDynamicFilterConfig(newConfig);
+          setIsFilterStudioOpen(false);
+        }}
+        trades={allCurrentTrades}
+      />
 
       <TradeOnePagerModal
         isOpen={isModalOpen}
@@ -4336,7 +3457,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
       })()}
 
       {/* View More Stock Details Modal (Requirements 2 & 3) */}
-      {viewMoreStock && (
+      {activeModalStock && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setViewMoreStock(null)}
@@ -4349,39 +3470,39 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-lg font-black text-slate-900">{viewMoreStock.symbol}</span>
+                  <span className="text-lg font-black text-slate-900">{activeModalStock.symbol}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200 uppercase">
-                    {viewMoreStock.exchange}
+                    {activeModalStock.exchange}
                   </span>
                   {/* Live Trade Price (LTP) */}
                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/90 shadow-2xs">
                     <span className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">LTP</span>
                     <span className="text-sm font-black text-slate-900 font-mono">
-                      ₹{Number(viewMoreStock.currentPrice ?? viewMoreStock.entry_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₹{Number(activeModalStock.currentPrice ?? activeModalStock.entry_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    {viewMoreStock.pnl !== undefined && (
-                      <span className={`text-[11px] font-bold font-mono ${viewMoreStock.pnl >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                        {viewMoreStock.pnl >= 0 ? "+" : ""}{Number(viewMoreStock.pnl || 0).toFixed(2)}%
+                    {activeModalStock.pnl !== undefined && (
+                      <span className={`text-[11px] font-bold font-mono ${activeModalStock.pnl >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                        {activeModalStock.pnl >= 0 ? "+" : ""}{Number(activeModalStock.pnl || 0).toFixed(2)}%
                       </span>
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">{viewMoreStock.company_name}</p>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">{activeModalStock.company_name}</p>
               </div>
 
               <div className="flex items-center gap-2">
                 {/* Status Pill */}
-                {viewMoreStock.isTargetHit ? (
+                {activeModalStock.isTargetHit ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold shadow-2xs">
                     <Target className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>Bulls Eye</span>
                   </span>
-                ) : viewMoreStock.isStopHit ? (
+                ) : activeModalStock.isStopHit ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold shadow-2xs">
                     <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                     <span>Bear</span>
                   </span>
-                ) : viewMoreStock.isSquaredOff ? (
+                ) : activeModalStock.isSquaredOff ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold shadow-2xs">
                     <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>Squared Off</span>
@@ -4410,15 +3531,15 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                   <Award className="w-4 h-4 text-purple-700" />
                   <span className="text-xs font-bold text-purple-950">Weighted Confidence:</span>
                   <span className="px-2 py-0.5 rounded-md bg-purple-200 text-purple-950 font-mono font-black text-xs">
-                    WA {viewMoreStock.waScore}%
+                    WA {activeModalStock.waScore}%
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono">
-                  <span>C:<b className="text-indigo-700">{viewMoreStock.curScore}%</b></span>
+                  <span>C:<b className="text-indigo-700">{activeModalStock.curScore}%</b></span>
                   <span>·</span>
-                  <span>H:<b className="text-emerald-700">{viewMoreStock.histScore}%</b></span>
+                  <span>H:<b className="text-emerald-700">{activeModalStock.histScore}%</b></span>
                   <span>·</span>
-                  <span>A:<b className="text-violet-700">{viewMoreStock.visScore}%</b></span>
+                  <span>A:<b className="text-violet-700">{activeModalStock.visScore}%</b></span>
                 </div>
               </div>
 
@@ -4427,40 +3548,40 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 <div>
                   <div className="text-[10px] uppercase font-bold text-slate-400">Buy Price</div>
                   <div className="text-base font-bold text-slate-900 mt-0.5">
-                    ₹{viewMoreStock.entry_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{activeModalStock.entry_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div className="text-[10.5px] text-slate-400 flex items-center gap-1 mt-0.5 font-sans">
                     <Clock className="w-3 h-3" />
-                    <span>{viewMoreStock.triggerTime} IST</span>
+                    <span>{activeModalStock.triggerTime} IST</span>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <div className="text-[10px] uppercase font-bold text-slate-400">
-                    {viewMoreStock.isTargetHit || viewMoreStock.isStopHit ? "Exit Price" : "LTP"}
+                    {activeModalStock.isTargetHit || activeModalStock.isStopHit ? "Exit Price" : "LTP"}
                   </div>
                   <div className="text-base font-bold text-slate-900 mt-0.5">
-                    ₹{viewMoreStock.currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{activeModalStock.currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div className="flex items-center justify-end gap-1 mt-0.5">
-                    <span className={`text-[11px] font-bold ${viewMoreStock.isPnlPositive ? "text-emerald-600" : "text-rose-600"}`}>
-                      {viewMoreStock.isPnlPositive ? "+" : ""}{viewMoreStock.pnl?.toFixed(2)}%
+                    <span className={`text-[11px] font-bold ${activeModalStock.isPnlPositive ? "text-emerald-600" : "text-rose-600"}`}>
+                      {activeModalStock.isPnlPositive ? "+" : ""}{activeModalStock.pnl?.toFixed(2)}%
                     </span>
-                    {viewMoreStock.exitTime && <span className="text-[10px] text-slate-400 font-sans">@{viewMoreStock.exitTime}</span>}
+                    {activeModalStock.exitTime && <span className="text-[10px] text-slate-400 font-sans">@{activeModalStock.exitTime}</span>}
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-200">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Target (+1.30%)</div>
                   <div className="text-sm font-bold text-emerald-600 mt-0.5">
-                    ₹{viewMoreStock.target_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{activeModalStock.target_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-200 text-right">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Stop Loss (-0.80%)</div>
                   <div className="text-sm font-bold text-rose-600 mt-0.5">
-                    ₹{viewMoreStock.stop_loss?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{activeModalStock.stop_loss?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
@@ -4470,14 +3591,14 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 {/* Today's High / Low */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
-                    <span>Today L: <b className="text-slate-900 font-mono">₹{Number(viewMoreStock.dayL || 0).toFixed(2)}</b></span>
+                    <span>Today L: <b className="text-slate-900 font-mono">₹{Number(activeModalStock.dayL || 0).toFixed(2)}</b></span>
                     <span className="text-[10px] text-slate-400 font-medium uppercase">Day Range</span>
-                    <span>Today H: <b className="text-slate-900 font-mono">₹{Number(viewMoreStock.dayH || 0).toFixed(2)}</b></span>
+                    <span>Today H: <b className="text-slate-900 font-mono">₹{Number(activeModalStock.dayH || 0).toFixed(2)}</b></span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative">
                     <div
                       className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full"
-                      style={{ width: `${viewMoreStock.dayProgressPct ?? 50}%` }}
+                      style={{ width: `${activeModalStock.dayProgressPct ?? 50}%` }}
                     />
                   </div>
                 </div>
@@ -4486,25 +3607,25 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 <div className="border-t border-slate-200/80 pt-2">
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
                     <span className="text-slate-700 font-mono">
-                      5D L: <b className="text-slate-900">₹{Number(viewMoreStock.low_5d ?? (viewMoreStock.dayL * 0.98)).toFixed(2)}</b>{" "}
+                      5D L: <b className="text-slate-900">₹{Number(activeModalStock.low_5d ?? (activeModalStock.dayL * 0.98)).toFixed(2)}</b>{" "}
                       <span className="text-emerald-600 font-sans font-bold">
-                        (+{Math.abs(viewMoreStock.l5dDiffPct ?? (((viewMoreStock.currentPrice - (viewMoreStock.low_5d ?? viewMoreStock.dayL)) / Math.max(1, viewMoreStock.low_5d ?? viewMoreStock.dayL)) * 100)).toFixed(1)}%)
+                        (+{Math.abs(activeModalStock.l5dDiffPct ?? (((activeModalStock.currentPrice - (activeModalStock.low_5d ?? activeModalStock.dayL)) / Math.max(1, activeModalStock.low_5d ?? activeModalStock.dayL)) * 100)).toFixed(1)}%)
                       </span>
                     </span>
                     <span className="text-[9.5px] text-indigo-700 font-extrabold uppercase tracking-wider bg-indigo-100/70 px-2 py-0.5 rounded border border-indigo-200 font-sans flex items-center gap-1">
                       <span>5-Day Range (5 Open Sessions)</span>
                     </span>
                     <span className="text-slate-700 font-mono">
-                      5D H: <b className="text-slate-900">₹{Number(viewMoreStock.high_5d ?? (viewMoreStock.dayH * 1.02)).toFixed(2)}</b>{" "}
+                      5D H: <b className="text-slate-900">₹{Number(activeModalStock.high_5d ?? (activeModalStock.dayH * 1.02)).toFixed(2)}</b>{" "}
                       <span className="text-rose-600 font-sans font-bold">
-                        ({(viewMoreStock.h5dDiffPct ?? (((viewMoreStock.currentPrice - (viewMoreStock.high_5d ?? viewMoreStock.dayH)) / Math.max(1, viewMoreStock.high_5d ?? viewMoreStock.dayH)) * 100)).toFixed(1)}%)
+                        ({(activeModalStock.h5dDiffPct ?? (((activeModalStock.currentPrice - (activeModalStock.high_5d ?? activeModalStock.dayH)) / Math.max(1, activeModalStock.high_5d ?? activeModalStock.dayH)) * 100)).toFixed(1)}%)
                       </span>
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative">
                     <div
                       className="h-full bg-gradient-to-r from-teal-500 via-cyan-500 to-indigo-500 rounded-full"
-                      style={{ width: `${viewMoreStock.d5ProgressPct ?? 50}%` }}
+                      style={{ width: `${activeModalStock.d5ProgressPct ?? 50}%` }}
                     />
                   </div>
                 </div>
@@ -4512,13 +3633,13 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 {/* 52W High / Low inside the SAME unified background */}
                 <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
                   <span className="text-slate-700">
-                    52W L: <b className="text-slate-900">₹{viewMoreStock.l52?.toFixed(1)}</b>{" "}
-                    <span className="text-emerald-600 font-sans font-bold">(+{Math.abs(viewMoreStock.lDiffPct || 0)}%)</span>
+                    52W L: <b className="text-slate-900">₹{activeModalStock.l52?.toFixed(1)}</b>{" "}
+                    <span className="text-emerald-600 font-sans font-bold">(+{Math.abs(activeModalStock.lDiffPct || 0)}%)</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-sans font-semibold uppercase">52W Range</span>
                   <span className="text-slate-700">
-                    52W H: <b className="text-slate-900">₹{viewMoreStock.h52?.toFixed(1)}</b>{" "}
-                    <span className="text-rose-600 font-sans font-bold">({viewMoreStock.hDiffPct || 0}%)</span>
+                    52W H: <b className="text-slate-900">₹{activeModalStock.h52?.toFixed(1)}</b>{" "}
+                    <span className="text-rose-600 font-sans font-bold">({activeModalStock.hDiffPct || 0}%)</span>
                   </span>
                 </div>
               </div>
@@ -4528,18 +3649,18 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1.5">
                   <span className="flex items-center gap-1 font-mono">
                     <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                    Vol: {Number(viewMoreStock.volume || 0).toLocaleString()}
+                    Vol: {Number(activeModalStock.volume || 0).toLocaleString()}
                   </span>
                   <span className="font-mono">
-                    <b className="text-emerald-600">B: {Number(viewMoreStock.buyQty || 0).toLocaleString()}</b> vs{" "}
-                    <b className="text-rose-600">S: {Number(viewMoreStock.sellQty || 0).toLocaleString()}</b>
+                    <b className="text-emerald-600">B: {Number(activeModalStock.buyQty || 0).toLocaleString()}</b> vs{" "}
+                    <b className="text-rose-600">S: {Number(activeModalStock.sellQty || 0).toLocaleString()}</b>
                   </span>
                 </div>
                 <div className="w-full h-2 bg-rose-200 rounded-full overflow-hidden flex">
                   <div
                     className="h-full bg-emerald-500 transition-all duration-300"
-                    style={{ width: `${viewMoreStock.buyPct ?? 50}%` }}
-                    title={`Buyers: ${viewMoreStock.buyPct ?? 50}%, Sellers: ${100 - (viewMoreStock.buyPct ?? 50)}%`}
+                    style={{ width: `${activeModalStock.buyPct ?? 50}%` }}
+                    title={`Buyers: ${activeModalStock.buyPct ?? 50}%, Sellers: ${100 - (activeModalStock.buyPct ?? 50)}%`}
                   />
                 </div>
               </div>
@@ -4551,7 +3672,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedTrade(viewMoreStock);
+                  setSelectedTrade(activeModalStock);
                   setIsModalOpen(true);
                   setViewMoreStock(null);
                 }}
@@ -4572,7 +3693,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 <button
                   type="button"
                   onClick={() => {
-                    setOrderTrade(viewMoreStock);
+                    setOrderTrade(activeModalStock);
                     setViewMoreStock(null);
                   }}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-xs cursor-pointer flex items-center gap-1.5"

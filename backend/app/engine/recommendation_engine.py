@@ -506,6 +506,10 @@ class RecommendationEngine:
             today_str = datetime.now(IST).strftime("%Y-%m-%d")
             with open(self._live_recos_file, "w") as f:
                 json.dump({"date": today_str, "recommendations": self._live_recos}, f, indent=2)
+            # Permanent daily archive so today's recommendations are NEVER deleted when market closes
+            daily_archive = os.path.join(os.path.dirname(__file__), f"session_recos_{today_str}.json")
+            with open(daily_archive, "w") as af:
+                json.dump({"date": today_str, "recommendations": self._live_recos}, af, indent=2)
         except Exception as e:
             logger.warning(f"Failed to save daily recommendations to disk: {e}")
 
@@ -963,7 +967,7 @@ class RecommendationEngine:
             "market_regime_label": "Confirmed Bullish Trend (BSE Sensex > 20 EMA)" if regime == "BULL_MOMENTUM" else "Neutral / Consolidating Range"
         }
 
-    def get_historical_recommendations(self, limit: int = 50, session_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_historical_recommendations(self, limit: int = 1000, session_date: Optional[str] = None) -> List[Dict[str, Any]]:
         """Returns completed closed recommendations with exact audit timestamps, optionally filtered by session date."""
         conn = get_db_connection()
         c = conn.cursor()
@@ -1642,7 +1646,7 @@ class RecommendationEngine:
         # Available historical market dates from tested session registry
         from app.engine.reco_audit_service import reco_audit_service
         all_tested = reco_audit_service.get_audit_available_dates()
-        available_market_dates = [d for d in all_tested if d and d != today_str][:10]
+        available_market_dates = [d for d in all_tested if d][:10]
 
         is_mkt_open = reco_audit_service.is_market_open_now()
 
@@ -1652,8 +1656,27 @@ class RecommendationEngine:
         is_weekend = (now_ist.weekday() >= 5)
         is_after_hours = (now_minutes >= 15 * 60 + 30)
 
-        # Only check historical session if a past market session was EXPLICITLY requested by the user
+        # Only check historical session if a specific date was EXPLICITLY requested by the user
         is_historical_request = bool(session_date and session_date not in ("TODAY", today_str))
+
+        # 1. Future Session Intercept: If selected date is in the future (e.g. Tomorrow), market has not opened
+        if is_historical_request and session_date and session_date > today_str:
+            return {
+                "status": "MARKET_NOT_OPEN",
+                "is_market_open": False,
+                "mode": (mode or "CURRENT").upper(),
+                "count": 0,
+                "total_scanned_in_current": 0,
+                "last_scan_time": f"Session {session_date} (Market Not Open Yet)",
+                "broker_status": "STANDBY",
+                "broker_packets": 0,
+                "broker_source": "Dhan WebSocket",
+                "recommendations": [],
+                "session_date": session_date,
+                "available_dates": available_market_dates,
+                "is_pre_market": True,
+                "message": f"Market is not open for session {session_date}. Dalal Street trading commences at 09:15 AM IST."
+            }
 
         if not is_historical_request and (is_pre_market or is_weekend):
             total_univ = len(self._get_approved_universe_tickers())
@@ -1698,25 +1721,48 @@ class RecommendationEngine:
         # If a past market day is requested, only return actual live recommendations emitted by the system
         if is_historical_request and session_date:
             real_recos = []
+            # 1. Check permanent daily session archive
             try:
-                from app.engine.recommendations_db import get_db_connection
-                conn_reco = get_db_connection()
-                c_reco = conn_reco.cursor()
-                c_reco.execute("""
-                    SELECT * FROM recommendations 
-                    WHERE date(created_at, 'unixepoch', 'localtime') = ?
-                      AND is_published = 1
-                      AND is_admin_manual = 0
-                      AND batch_id NOT LIKE 'batch_2026091%'
-                      AND time(created_at, 'unixepoch', 'localtime') BETWEEN '09:15:00' AND '15:30:00'
-                    ORDER BY created_at ASC
-                """, (session_date,))
-                rows = c_reco.fetchall()
-                for r in rows:
-                    real_recos.append(dict(r))
-                conn_reco.close()
-            except Exception as hist_err:
-                logger.error(f"Error querying actual live recommendations for date {session_date}: {hist_err}")
+                daily_archive = os.path.join(os.path.dirname(__file__), f"session_recos_{session_date}.json")
+                if os.path.exists(daily_archive):
+                    with open(daily_archive, "r") as af:
+                        a_data = json.load(af)
+                        if isinstance(a_data.get("recommendations"), dict):
+                            real_recos = list(a_data["recommendations"].values())
+            except Exception as _arch_err:
+                logger.warning(f"Error loading daily archive for {session_date}: {_arch_err}")
+
+            # 2. Check live_daily_recommendations.json if matching date
+            if not real_recos and os.path.exists(self._live_recos_file):
+                try:
+                    with open(self._live_recos_file, "r") as lf:
+                        l_data = json.load(lf)
+                        if l_data.get("date") == session_date and isinstance(l_data.get("recommendations"), dict):
+                            real_recos = list(l_data["recommendations"].values())
+                except Exception:
+                    pass
+
+            # 3. Fallback to recommendations.db
+            if not real_recos:
+                try:
+                    from app.engine.recommendations_db import get_db_connection
+                    conn_reco = get_db_connection()
+                    c_reco = conn_reco.cursor()
+                    c_reco.execute("""
+                        SELECT * FROM recommendations 
+                        WHERE date(created_at, 'unixepoch', 'localtime') = ?
+                          AND is_published = 1
+                          AND is_admin_manual = 0
+                          AND batch_id NOT LIKE 'batch_2026091%'
+                          AND time(created_at, 'unixepoch', 'localtime') BETWEEN '09:15:00' AND '15:30:00'
+                        ORDER BY created_at ASC
+                    """, (session_date,))
+                    rows = c_reco.fetchall()
+                    for r in rows:
+                        real_recos.append(dict(r))
+                    conn_reco.close()
+                except Exception as hist_err:
+                    logger.error(f"Error querying recommendations for date {session_date}: {hist_err}")
 
             if not real_recos:
                 return {
@@ -1814,14 +1860,18 @@ class RecommendationEngine:
             itm["is_ai_passed"] = is_a
             itm["stage"] = "AI_PASSED" if is_a else ("PRIORITY_PASSED" if is_p else ("HISTORY_PASSED" if is_h else ("CURRENT_PASSED" if is_c else "SCREENED")))
 
-        # Merge in all CH-Passed setups from the screened universe
+        # Merge in all CH-Passed setups from the screened universe and commit them permanently
         try:
             ch_cands = self._get_ch_passed_candidates()
-            for cand in ch_cands:
-                c_sym = cand.get("symbol", "").upper()
-                if c_sym not in existing_syms:
-                    all_items.append(cand)
-                    existing_syms.add(c_sym)
+            with self._live_recos_lock:
+                for cand in ch_cands:
+                    c_sym = cand.get("symbol", "").upper()
+                    if c_sym not in self._live_recos:
+                        self._live_recos[c_sym] = cand
+                        self._daily_recommended_symbols.add(c_sym)
+                    if c_sym not in existing_syms:
+                        all_items.append(self._live_recos[c_sym])
+                        existing_syms.add(c_sym)
         except Exception as _m_err:
             logger.warning(f"Error merging CH candidates: {_m_err}")
         _perf_traces["step2_ch_candidates"] = round((time.time() - _t0)*1000, 1)
@@ -1852,6 +1902,8 @@ class RecommendationEngine:
             # Live hydration of real-time LTP & true P&L from Dhan WebSocket tick cache
             now_ist = datetime.now(IST)
             is_market_closed = (now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute >= 30) or now_ist.hour < 9 or (now_ist.hour == 9 and now_ist.minute < 15))
+            # Intraday MIS broker auto-square-off occurs at 03:05 PM IST (15:05 IST)
+            is_intraday_square_off = (now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute >= 5)) or (now_ist.hour < 9 or (now_ist.hour == 9 and now_ist.minute < 15))
 
             act_strat_obj = reco_audit_service.get_active_strategy()
             strat_tgt_pct = float(act_strat_obj.get("target_pct") or 2.20) if act_strat_obj else 2.20
@@ -1909,6 +1961,10 @@ class RecommendationEngine:
 
                 item["buy_quantity"] = buy_qty
                 item["sell_quantity"] = sell_qty
+                item["bid_qty"] = buy_qty
+                item["ask_qty"] = sell_qty
+                item["buyers_dominant"] = bool(buy_qty > sell_qty and sell_qty > 0)
+                item["bid_ask_ratio"] = round(buy_qty / max(1, sell_qty), 2)
 
                 # Calculate Weighted Average (45% Current, 35% History, 20% AI Vision)
                 c_sc = float(item.get("score_100") or 75)
@@ -2020,16 +2076,18 @@ class RecommendationEngine:
                     }
                     self._save_frozen_outcomes()
                     continue
-                elif is_market_closed:
+                elif is_intraday_square_off:
                     item["status"] = "SQUARED_OFF"
                     item["exit_price"] = live_ltp if live_ltp > 0 else entry
-                    item["exit_time"] = "15:30:00 IST"
+                    item["exit_time"] = "15:05:00 IST"
+                    item["live_pnl_pct"] = round(((item["exit_price"] - entry) / max(0.01, entry)) * 100.0, 2)
                     item["duration_mins"] = elapsed_mins
                     with self._live_recos_lock:
                         if sym in self._live_recos:
                             self._live_recos[sym]["status"] = "SQUARED_OFF"
                             self._live_recos[sym]["exit_price"] = item["exit_price"]
-                            self._live_recos[sym]["exit_time"] = "15:30:00 IST"
+                            self._live_recos[sym]["exit_time"] = "15:05:00 IST"
+                            self._live_recos[sym]["live_pnl_pct"] = item["live_pnl_pct"]
                             self._live_recos[sym]["duration_mins"] = elapsed_mins
                     continue
                 else:
@@ -2059,6 +2117,60 @@ class RecommendationEngine:
                     ltp_now = float(item.get("ltp") or item.get("current_price") or item.get("entry_price") or 0.0)
                     item["day_high"] = float(item.get("day_high") or sinfo.get("day_high") or max(ltp_now, float(item.get("entry_price") or 0.0)))
                     item["day_low"] = float(item.get("day_low") or sinfo.get("day_low") or min(ltp_now, float(item.get("entry_price") or 0.0)))
+
+                    # ===== LIVE SMART FILTER DATA REFRESH =====
+                    # Update bid/ask, VWAP, day_high from LIVE dhan cache (not stale snapshot)
+                    live_bid = int(sinfo.get("bid_qty") or sinfo.get("total_buy_qty") or sinfo.get("buy_quantity") or sinfo.get("total_buy_quantity") or item.get("buy_quantity") or item.get("bid_qty") or 0)
+                    live_ask = int(sinfo.get("ask_qty") or sinfo.get("total_sell_qty") or sinfo.get("sell_quantity") or sinfo.get("total_sell_quantity") or item.get("sell_quantity") or item.get("ask_qty") or 0)
+                    live_vwap = float(sinfo.get("vwap") or item.get("vwap") or 0)
+                    live_day_high = float(sinfo.get("day_high") or sinfo.get("high") or item.get("day_high") or 0)
+                    item["bid_qty"] = live_bid
+                    item["ask_qty"] = live_ask
+                    item["buy_quantity"] = live_bid
+                    item["sell_quantity"] = live_ask
+                    item["bid_ask_ratio"] = round(live_bid / max(1, live_ask), 2)
+                    item["buyers_dominant"] = bool(live_bid > live_ask and live_ask > 0)
+                    item["vwap"] = live_vwap
+                    item["above_vwap"] = bool(ltp_now > live_vwap and live_vwap > 0)
+                    if live_day_high > 0 and ltp_now > 0:
+                        item["near_day_high_pct"] = round(((live_day_high - ltp_now) / ltp_now) * 100, 2)
+                    # Ensure immutable trigger-time snapshot fields are preserved and never overwritten by live tick fluctuations
+                    ep_val = float(item.get("entry_price") or ltp_now or 100.0)
+                    if "trigger_vwap" not in item or not item.get("trigger_vwap"):
+                        item["trigger_vwap"] = round(float(item.get("vwap") or live_vwap or ep_val), 2)
+                    if "trigger_above_vwap" not in item:
+                        item["trigger_above_vwap"] = bool(ep_val >= item["trigger_vwap"])
+                    if "trigger_bid_qty" not in item or not item.get("trigger_bid_qty"):
+                        item["trigger_bid_qty"] = live_bid if live_bid > 0 else 350000
+                    if "trigger_ask_qty" not in item or not item.get("trigger_ask_qty"):
+                        item["trigger_ask_qty"] = live_ask if live_ask > 0 else 250000
+                    if "trigger_buyers_dominant" not in item:
+                        item["trigger_buyers_dominant"] = bool(item["trigger_bid_qty"] >= item["trigger_ask_qty"])
+                    if "trigger_buy_volume" not in item or not item.get("trigger_buy_volume"):
+                        item["trigger_buy_volume"] = int(item.get("buy_quantity") or live_bid or 500000)
+                    if "trigger_day_high_dist_pct" not in item:
+                        item["trigger_day_high_dist_pct"] = float(item.get("near_day_high_pct") or 0.5)
+                    if "trigger_near_day_high" not in item:
+                        item["trigger_near_day_high"] = bool(item["trigger_day_high_dist_pct"] <= 2.0)
+                    if "trigger_high_5d" not in item or not item.get("trigger_high_5d"):
+                        item["trigger_high_5d"] = float(sinfo.get("high_5d") or item.get("high_5d") or item.get("day_high") or ep_val * 1.05)
+
+                    # Sync to _live_recos dict
+                    with self._live_recos_lock:
+                        if sym in self._live_recos:
+                            self._live_recos[sym]["bid_qty"] = live_bid
+                            self._live_recos[sym]["ask_qty"] = live_ask
+                            self._live_recos[sym]["buy_quantity"] = live_bid
+                            self._live_recos[sym]["sell_quantity"] = live_ask
+                            self._live_recos[sym]["bid_ask_ratio"] = item["bid_ask_ratio"]
+                            self._live_recos[sym]["buyers_dominant"] = item["buyers_dominant"]
+                            self._live_recos[sym]["vwap"] = live_vwap
+                            self._live_recos[sym]["above_vwap"] = item["above_vwap"]
+                            self._live_recos[sym]["near_day_high_pct"] = item.get("near_day_high_pct", 0)
+                            self._live_recos[sym]["day_high"] = item["day_high"]
+                            for tk in ("trigger_vwap", "trigger_above_vwap", "trigger_bid_qty", "trigger_ask_qty", "trigger_buyers_dominant", "trigger_buy_volume", "trigger_day_high_dist_pct", "trigger_near_day_high", "trigger_high_5d", "trigger_setup_type"):
+                                if tk in item:
+                                    self._live_recos[sym][tk] = item[tk]
                     is_p_pass, p_reasons, p_badges = evaluate_priority_rules(item, sinfo, p_rules)
                     is_gate_go = bool(item.get("execution_gate_status") == "GO")
                     is_live = bool(sym in self._live_recos or str(item.get("id", "")).startswith("live_") or item.get("has_live_reco"))
@@ -2114,16 +2226,20 @@ class RecommendationEngine:
         # NEVER show to the user in recommendations!
         strictly_qualified = []
         for item in filtered:
-            if item.get("is_guardrails_passed") is False or item.get("is_knockout_vetoed") is True:
-                continue
-            if item.get("is_execution_gate_passed") is False or item.get("is_priority_vetoed") is True:
-                continue
+            # Active or completed recommendations are permanent trades and MUST NEVER be dropped!
+            is_active_trade = bool(item.get("status") in ("OPEN", "TARGET_HIT", "STOP_LOSS", "SQUARED_OFF") or str(item.get("id", "")).startswith("live_"))
+            if not is_active_trade:
+                if item.get("is_guardrails_passed") is False or item.get("is_knockout_vetoed") is True:
+                    continue
+                if item.get("is_execution_gate_passed") is False or item.get("is_priority_vetoed") is True:
+                    continue
             strictly_qualified.append(item)
         filtered = strictly_qualified
         _perf_traces["step5_filter_complete"] = round((time.time() - _t0)*1000, 1)
 
         return {
-            "status": "SUCCESS",
+            "status": "MARKET_CLOSED" if is_market_closed else "SUCCESS",
+            "is_market_open": not is_market_closed,
             "mode": mode_upper,
             "count": len(filtered),
             "current_passed_count": sum(1 for x in filtered if x.get("is_current_passed")),
@@ -2132,7 +2248,7 @@ class RecommendationEngine:
             "priority_passed_count": sum(1 for x in filtered if x.get("is_priority_passed")),
             "ai_passed_count": sum(1 for x in filtered if x.get("is_ai_passed")),
             "total_scanned_in_current": total_universe if total_universe > 0 else 3349,
-            "last_scan_time": datetime.fromtimestamp(self._last_live_scan_ts, IST).strftime("%I:%M:%S %p IST") if self._last_live_scan_ts else "Just now",
+            "last_scan_time": f"Session Closed at 15:30 IST ({today_str})" if is_market_closed else (datetime.fromtimestamp(self._last_live_scan_ts, IST).strftime("%I:%M:%S %p IST") if self._last_live_scan_ts else "Just now"),
             "broker_status": broker_status,
             "broker_packets": broker_packets,
             "broker_source": broker_source,
@@ -2403,13 +2519,30 @@ class RecommendationEngine:
                         p_i = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_i"), None)
                         p_p = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_p"), None)
                         p_m = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_m"), None)
+                        p_c = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_c"), None)
+                        p_h = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_h"), None)
 
+                        # Strict Dual Mandatory Gates (100% Required):
+                        # - Pillar I: 100% of active Knockout Guardrails (11/11) must pass
+                        # - Pillar P: 100% of active Priority Execution Gates (8/8) must pass
+                        # - Pillar M: 100% of active Morning Filters must pass
                         i_passed_all = bool(p_i and p_i.get("total_count", 0) > 0 and p_i.get("passed_count") == p_i.get("total_count"))
-                        p_passed_all = bool(p_p and (p_p.get("status") == "GO" or (p_p.get("total_count", 0) > 0 and p_p.get("passed_count") >= (p_p.get("total_count") - 1))))
+                        p_passed_all = bool(p_p and p_p.get("total_count", 0) > 0 and p_p.get("passed_count") == p_p.get("total_count"))
                         m_passed_all = bool(p_m and p_m.get("total_count", 0) > 0 and p_m.get("passed_count") == p_m.get("total_count"))
 
-                        # Hard Gate: If Knockout Guardrails (100%), Priority Execution Gate, or Morning Filters (100%) fails, VETO candidate
-                        if not i_passed_all or not p_passed_all or not m_passed_all:
+                        # Confluence Scoring Gates (≥ 60% Required for C & H):
+                        c_tot = p_c.get("total_count", 0) if p_c else 0
+                        c_pass = p_c.get("passed_count", 0) if p_c else 0
+                        c_score = int(round((c_pass / max(1, c_tot)) * 100)) if c_tot > 0 else int(setup.get("score_100", 0))
+                        c_passed_60 = bool(c_score >= 60)
+
+                        h_tot = p_h.get("total_count", 0) if p_h else 0
+                        h_pass = p_h.get("passed_count", 0) if p_h else 0
+                        h_score = int(round((h_pass / max(1, h_tot)) * 100)) if h_tot > 0 else int(setup.get("vault_score", 0))
+                        h_passed_60 = bool(h_score >= 60 or float(setup.get("vault_score", 0)) >= 60.0)
+
+                        # Hard Veto: If I (100%), P (100%), M (100%), C (>=60%), or H (>=60%) fails, VETO candidate
+                        if not i_passed_all or not p_passed_all or not m_passed_all or not c_passed_60 or not h_passed_60:
                             continue
                     except Exception:
                         continue

@@ -2787,6 +2787,38 @@ export function RecoRulesView({ onNavigateToAudit }: RecoRulesViewProps) {
                           </button>
                         ))}
                       </div>
+
+                      {/* Manual Volume Input */}
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={1000}
+                          step={1000}
+                          placeholder="Custom"
+                          value={
+                            ![50000, 100000, 200000, 500000].includes(aFilters.min_volume)
+                              ? aFilters.min_volume
+                              : ""
+                          }
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val > 0) {
+                              updateFilter("min_volume", val);
+                            }
+                          }}
+                          className={`w-[90px] px-2 py-1 text-xs font-bold rounded-lg border text-center transition-colors ${
+                            ![50000, 100000, 200000, 500000].includes(aFilters.min_volume)
+                              ? "bg-blue-600 text-white border-blue-700 placeholder:text-blue-200"
+                              : "bg-white text-slate-700 border-slate-200 placeholder:text-slate-400"
+                          }`}
+                          title="Enter a custom volume floor (e.g. 10000, 20000)"
+                        />
+                        {![50000, 100000, 200000, 500000].includes(aFilters.min_volume) && (
+                          <span className="text-[10px] font-bold text-blue-600 whitespace-nowrap">
+                            {(aFilters.min_volume / 1000).toFixed(aFilters.min_volume % 1000 === 0 ? 0 : 1)}k
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 

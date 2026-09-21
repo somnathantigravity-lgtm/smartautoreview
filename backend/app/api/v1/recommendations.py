@@ -111,7 +111,7 @@ def get_intraday_trimmed():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/recommendations/history")
-def get_historical_recommendations(limit: int = 50, date: Optional[str] = None):
+def get_historical_recommendations(limit: int = 1000, date: Optional[str] = None):
     """Returns completed historical recommendations with returns, holding period, and outcome, optionally filtered by session date."""
     try:
         data = recommendation_engine.get_historical_recommendations(limit=limit, session_date=date)

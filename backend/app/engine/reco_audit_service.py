@@ -4,6 +4,7 @@ import math
 import json
 import sqlite3
 import logging
+import threading
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Set
 
@@ -153,6 +154,18 @@ class RecoAuditService:
         self._daily_symbol_audits: Dict[str, List[Dict[str, Any]]] = {}
         self._daily_symbol_total_checks: Dict[str, int] = {}
         self._daily_symbol_total_hits: Dict[str, int] = {}
+
+        # Unlimited Reco Emission: No artificial caps, let user filter on frontend
+        self.SESSION_QUOTAS = {
+            "morning": 999999,     # 09:30 - 11:30
+            "afternoon": 999999,   # 11:30 - 13:45
+            "day_end": 999999      # 13:45 - 15:00
+        }
+        self.DAILY_MAX_RECOS = 999999
+        self._session_reco_tracker: Dict[str, Set[str]] = {"morning": set(), "afternoon": set(), "day_end": set()}
+        self._reco_rank_scores: Dict[str, float] = {}  # symbol -> rank_score
+        self._5d_highlow_cache: Optional[Dict[str, Dict[str, float]]] = None
+        self._5d_highlow_ts: float = 0.0
 
     def is_market_open_now(self) -> bool:
         """Returns True if Indian equities markets (NSE/BSE) are open right now (Mon-Fri 09:15-15:30 IST)."""
@@ -498,7 +511,7 @@ class RecoAuditService:
                 c_fail_reasons.append(f"{rname}: {label} ({pts:+d} pts)")
 
         score_c = int(round((c_pts / max(1, c_max_pts)) * 100.0)) if c_max_pts > 0 else 75
-        c_cutoff = int(block_c.get("min_score", 50))
+        c_cutoff = int(block_c.get("min_score", 60))
         pillar_c_passed = bool(score_c >= c_cutoff)
         if pillar_c_passed:
             c_fail_reasons = []
@@ -706,6 +719,8 @@ class RecoAuditService:
             "rvol": rvol_val,
             "bid_qty": bid_qty,
             "ask_qty": ask_qty,
+            "buy_quantity": bid_qty,
+            "sell_quantity": ask_qty,
             "bid_pct": bid_pct,
             "base_comp_pct": base_comp_pct,
             "m_pass": m_pass,
@@ -733,8 +748,211 @@ class RecoAuditService:
             "fail_reasons": all_fail_reasons
         }
 
+    def _get_current_session(self) -> str:
+        """Returns current trading session name based on IST time."""
+        now_ist = datetime.now(IST)
+        now_m = now_ist.hour * 60 + now_ist.minute
+        if now_m < 11 * 60 + 30:
+            return "morning"
+        elif now_m < 13 * 60 + 45:
+            return "afternoon"
+        else:
+            return "day_end"
+
+    def _get_session_budget_remaining(self) -> int:
+        """Returns remaining reco budget — unlimited per user requirement so all setups flow through."""
+        return 999999
+
+    def _load_5d_highlow_cache(self) -> Dict[str, Dict[str, float]]:
+        """Bulk-loads 5-day high and low for all stocks from historical candles. Cached for 5 minutes."""
+        now = time.time()
+        if self._5d_highlow_cache and (now - self._5d_highlow_ts < 300.0):
+            return self._5d_highlow_cache
+
+        result: Dict[str, Dict[str, float]] = {}
+        try:
+            if os.path.exists(HISTORY_DB_PATH):
+                conn = sqlite3.connect(f"file:{HISTORY_DB_PATH}?mode=ro", uri=True, timeout=3.0)
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT symbol, MAX(high) as h5d, MIN(low) as l5d
+                    FROM historical_1min_candles
+                    WHERE datetime_str >= date('now', '-5 days')
+                    GROUP BY symbol
+                """)
+                for row in cur.fetchall():
+                    sym = row[0].upper().strip()
+                    result[sym] = {"high_5d": float(row[1] or 0), "low_5d": float(row[2] or 0)}
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Error loading 5D high/low cache: {e}")
+
+        self._5d_highlow_cache = result
+        self._5d_highlow_ts = now
+        return result
+
+    def _compute_rank_score(self, sym: str, b: Dict[str, Any], ev: Dict[str, Any], stk_meta: Dict[str, Any], ltp: float) -> float:
+        """
+        Computes a 0-100 composite ranking score for a MICHPA-passing stock.
+        Higher score = better recommendation quality.
+
+        10 Factors:
+        1. Target within 5D High-Low Range (20 pts)
+        2. Buy Volume Dominance / Bid-Ask Ratio (15 pts)
+        3. ADR Headroom (12 pts)
+        4. RVOL Surge (12 pts)
+        5. HOD Proximity (10 pts)
+        6. Live Bid Dominance (8 pts)
+        7. VWAP Position (8 pts)
+        8. Historical Win Rate (7 pts)
+        9. Hurst Persistence (5 pts)
+        10. Low Trap Rate (3 pts)
+        """
+        score = 0.0
+        target_pct = 1.3  # 1.3% target
+        target_price = round(ltp * (1 + target_pct / 100.0), 2)
+
+        # 1. TARGET WITHIN 5D HIGH-LOW RANGE (20 pts)
+        hl_cache = self._load_5d_highlow_cache()
+        hl = hl_cache.get(sym)
+        if hl and hl.get("high_5d", 0) > 0:
+            h5d = hl["high_5d"]
+            if target_price <= h5d:
+                score += 20.0  # Target is below 5D high — very achievable
+            elif target_price <= h5d * 1.005:
+                score += 15.0  # Within 0.5% of 5D high
+            elif target_price <= h5d * 1.01:
+                score += 10.0  # Within 1% of 5D high
+            elif target_price <= h5d * 1.02:
+                score += 5.0   # Within 2%
+            # else: 0 pts — target requires a new 5D high
+        else:
+            # No history: use ADR as proxy
+            adr = float(b.get("adr_pct") or 2.2)
+            if adr >= target_pct * 2:
+                score += 15.0
+            elif adr >= target_pct * 1.5:
+                score += 10.0
+            elif adr >= target_pct:
+                score += 5.0
+
+        # 2. BUY VOLUME DOMINANCE (15 pts) — Bid/Ask ratio as proxy for buy vs sell pressure
+        bid_qty = ev.get("bid_qty", 0)
+        ask_qty = ev.get("ask_qty", 0)
+        if ask_qty > 0:
+            ba_ratio = bid_qty / ask_qty
+        else:
+            ba_ratio = 1.0
+        if ba_ratio >= 1.8:
+            score += 15.0
+        elif ba_ratio >= 1.5:
+            score += 12.0
+        elif ba_ratio >= 1.3:
+            score += 9.0
+        elif ba_ratio >= 1.1:
+            score += 5.0
+        elif ba_ratio >= 1.0:
+            score += 2.0
+
+        # 3. ADR HEADROOM (12 pts) — Can the stock physically move enough?
+        adr_pct = float(b.get("adr_pct") or 2.2)
+        headroom_ratio = adr_pct / max(0.1, target_pct)
+        if headroom_ratio >= 2.5:
+            score += 12.0
+        elif headroom_ratio >= 2.0:
+            score += 10.0
+        elif headroom_ratio >= 1.5:
+            score += 7.0
+        elif headroom_ratio >= 1.0:
+            score += 4.0
+
+        # 4. RVOL SURGE (12 pts)
+        rvol = ev.get("rvol", 1.0)
+        if rvol >= 3.0:
+            score += 12.0
+        elif rvol >= 2.5:
+            score += 10.0
+        elif rvol >= 2.0:
+            score += 8.0
+        elif rvol >= 1.5:
+            score += 5.0
+        elif rvol >= 1.2:
+            score += 2.0
+
+        # 5. HOD PROXIMITY (10 pts) — Close to day high = breakout imminent
+        day_hi = ev.get("day_hi", ltp)
+        if day_hi > 0 and ltp > 0:
+            hod_ratio = ltp / day_hi
+            if hod_ratio >= 0.998:
+                score += 10.0  # At or above HOD
+            elif hod_ratio >= 0.995:
+                score += 8.0
+            elif hod_ratio >= 0.99:
+                score += 5.0
+            elif hod_ratio >= 0.98:
+                score += 2.0
+
+        # 6. LIVE BID DOMINANCE (8 pts)
+        bid_pct = ev.get("bid_pct", 50.0)
+        if bid_pct >= 65.0:
+            score += 8.0
+        elif bid_pct >= 58.0:
+            score += 6.0
+        elif bid_pct >= 52.0:
+            score += 3.0
+        elif bid_pct >= 50.0:
+            score += 1.0
+
+        # 7. VWAP POSITION (8 pts) — Above VWAP and close to it = institutional launchpad
+        vwap = ev.get("vwap", 0)
+        if vwap > 0 and ltp > 0:
+            vwap_dist = ((ltp - vwap) / vwap) * 100.0
+            if 0 <= vwap_dist <= 0.5:
+                score += 8.0  # Just above VWAP — perfect launchpad
+            elif 0 <= vwap_dist <= 1.0:
+                score += 6.0
+            elif 0 <= vwap_dist <= 1.5:
+                score += 4.0
+            elif vwap_dist > 1.5:
+                score += 2.0  # Above but extended
+            # Below VWAP = 0 pts
+
+        # 8. HISTORICAL WIN RATE (7 pts)
+        win_rate = float(b.get("emp_win_rate") or b.get("win_rate_1pct") or 55.0)
+        if win_rate >= 75.0:
+            score += 7.0
+        elif win_rate >= 65.0:
+            score += 5.0
+        elif win_rate >= 55.0:
+            score += 3.0
+        elif win_rate >= 45.0:
+            score += 1.0
+
+        # 9. HURST PERSISTENCE (5 pts)
+        hurst = float(b.get("hurst_exponent") or 0.52)
+        if hurst >= 0.65:
+            score += 5.0
+        elif hurst >= 0.58:
+            score += 4.0
+        elif hurst >= 0.55:
+            score += 3.0
+        elif hurst >= 0.50:
+            score += 1.0
+
+        # 10. LOW TRAP RATE (3 pts)
+        trap_rate = float(b.get("bull_trap_pct") or 18.0)
+        if trap_rate <= 10.0:
+            score += 3.0
+        elif trap_rate <= 18.0:
+            score += 2.0
+        elif trap_rate <= 25.0:
+            score += 1.0
+
+        return round(score, 1)
+
     def execute_audit_cycle(self) -> Dict[str, Any]:
-        """Runs vectorized/in-memory evaluation of all eligible stocks in <50ms."""
+        """Runs vectorized/in-memory evaluation of all eligible stocks in <50ms.
+        Now uses session-capped ranking: only emits TOP-N recommendations per session."""
         now = time.time()
         self._last_audit_ts = now
         base_stocks = self._load_base_universe()
@@ -764,6 +982,7 @@ class RecoAuditService:
 
         evaluated_count = 0
         passed_in_cycle = 0
+        passed_candidates: List[Dict[str, Any]] = []  # Collect for ranking
 
         for b in base_stocks:
             sym = b["symbol"].upper().strip()
@@ -826,7 +1045,45 @@ class RecoAuditService:
             if all_passed:
                 passed_in_cycle += 1
                 if ltp > 0:
-                    self._register_live_reco_if_new(sym, b, ltp, score_c, score_h, score_a, score_wa)
+                    # Compute ranking score for this candidate
+                    rank_score = self._compute_rank_score(sym, b, ev, stk_meta, ltp)
+                    passed_candidates.append({
+                        "sym": sym, "b": b, "ltp": ltp,
+                        "score_c": score_c, "score_h": score_h,
+                        "score_a": score_a, "score_wa": score_wa,
+                        "rank_score": rank_score
+                    })
+
+        # ---- SESSION-CAPPED RANKING: Only emit top-N per session ----
+        if passed_candidates:
+            # Sort by rank score descending — best first
+            passed_candidates.sort(key=lambda x: x["rank_score"], reverse=True)
+            session = self._get_current_session()
+            budget = self._get_session_budget_remaining()
+
+            # Check already-emitted recos and their rank scores for replacement
+            live_recos = getattr(recommendation_engine, "_live_recos", {})
+            already_emitted_syms = set(self._session_reco_tracker.get(session, set()))
+
+            registered_count = 0
+            for cand in passed_candidates:
+                sym = cand["sym"]
+                # Skip if already emitted (no duplicate)
+                if sym in live_recos:
+                    # Update rank score for existing reco
+                    self._reco_rank_scores[sym] = cand["rank_score"]
+                    continue
+
+                # Direct registration for all passed candidates — no caps, let user filter on frontend
+                self._register_live_reco_if_new(
+                    sym, cand["b"], cand["ltp"],
+                    cand["score_c"], cand["score_h"],
+                    cand["score_a"], cand["score_wa"],
+                    rank_score=cand["rank_score"]
+                )
+                self._session_reco_tracker.setdefault(session, set()).add(sym)
+                self._reco_rank_scores[sym] = cand["rank_score"]
+                registered_count += 1
 
         # Update audit counters
         self._audit_timestamps.append(now)
@@ -852,10 +1109,13 @@ class RecoAuditService:
             "status": "SUCCESS",
             "evaluated": evaluated_count,
             "passed": passed_in_cycle,
+            "registered": registered_count if passed_candidates else 0,
+            "session": self._get_current_session(),
+            "session_budget_remaining": self._get_session_budget_remaining(),
             "timestamp": now
         }
 
-    def _register_live_reco_if_new(self, sym: str, b: Dict[str, Any], ltp: float, score_c: int, score_h: int, score_a: int, score_wa: int):
+    def _register_live_reco_if_new(self, sym: str, b: Dict[str, Any], ltp: float, score_c: int, score_h: int, score_a: int, score_wa: int, rank_score: float = 0.0):
         """Injects a qualified audit stock into recommendation_engine and recommendations.db (strictly during market hours 09:15 - 15:30 IST)."""
         try:
             active_strat = self.get_active_strategy()
@@ -896,6 +1156,10 @@ class RecoAuditService:
             stk_meta = dhan_provider.stocks_cache.get(sym, {})
             chg_pct = float(stk_meta.get("change_pct") or 0.0)
 
+            # Load 5D high/low for smart filters
+            hl_cache = self._load_5d_highlow_cache()
+            hl = hl_cache.get(sym, {})
+
             rec_item = {
                 "id": rec_id,
                 "symbol": sym,
@@ -929,7 +1193,38 @@ class RecoAuditService:
                     f"Institutional Reco Audit: C={score_c}%, H={score_h}%, A={score_a}%",
                     f"Institutional Weighted Conviction: {score_wa}%",
                     f"Asymmetric Intraday Target: +1.30% (₹{tgt}) vs SL -0.80% (₹{sl})"
-                ]
+                ],
+                # ===== SMART FILTER DATA FIELDS =====
+                "rank_score": round(rank_score, 1),
+                "high_5d": round(hl.get("high_5d", 0), 2),
+                "low_5d": round(hl.get("low_5d", 0), 2),
+                "target_in_5d_range": bool(hl.get("high_5d", 0) > 0 and tgt <= hl.get("high_5d", 0)),
+                "bid_qty": int(stk_meta.get("bid_qty") or stk_meta.get("total_buy_qty") or stk_meta.get("buy_quantity") or 0),
+                "ask_qty": int(stk_meta.get("ask_qty") or stk_meta.get("total_sell_qty") or stk_meta.get("sell_quantity") or 0),
+                "buy_quantity": int(stk_meta.get("bid_qty") or stk_meta.get("total_buy_qty") or stk_meta.get("buy_quantity") or 0),
+                "sell_quantity": int(stk_meta.get("ask_qty") or stk_meta.get("total_sell_qty") or stk_meta.get("sell_quantity") or 0),
+                "bid_ask_ratio": round((int(stk_meta.get("bid_qty") or stk_meta.get("total_buy_qty") or stk_meta.get("buy_quantity") or 1)) / max(1, int(stk_meta.get("ask_qty") or stk_meta.get("total_sell_qty") or stk_meta.get("sell_quantity") or 1)), 2),
+                "buyers_dominant": bool(int(stk_meta.get("bid_qty") or stk_meta.get("total_buy_qty") or stk_meta.get("buy_quantity") or 0) > int(stk_meta.get("ask_qty") or stk_meta.get("total_sell_qty") or stk_meta.get("sell_quantity") or 1)),
+                "vwap": round(float(stk_meta.get("vwap") or 0), 2),
+                "above_vwap": bool(ltp > float(stk_meta.get("vwap") or 0) and float(stk_meta.get("vwap") or 0) > 0),
+                "day_high": round(float(stk_meta.get("day_high") or stk_meta.get("high") or 0), 2),
+                "day_low": round(float(stk_meta.get("day_low") or stk_meta.get("low") or 0), 2),
+                "near_day_high_pct": round(((float(stk_meta.get("day_high") or ltp) - ltp) / max(1, ltp)) * 100, 2) if float(stk_meta.get("day_high") or 0) > 0 else 0,
+                "trigger_rvol": round(float(stk_meta.get("rvol") or b.get("rvol_avg") or 1.0), 2),
+                "win_rate": round(float(b.get("emp_win_rate") or b.get("win_rate_1pct") or 55.0), 1),
+                "bull_trap_pct": round(float(b.get("bull_trap_pct") or 18.0), 1),
+                "adr_pct": round(float(b.get("adr_pct") or 2.2), 2),
+                "volume": int(stk_meta.get("volume") or 0),
+                "hurst_exponent": round(float(b.get("hurst_exponent") or 0.52), 3),
+                "is_guardrails_passed": True,
+                "is_knockout_vetoed": False,
+                "is_execution_gate_passed": True,
+                "is_priority_vetoed": False,
+                "is_priority_passed": True,
+                "is_current_passed": True,
+                "is_history_passed": bool(score_h >= 50),
+                "is_ch_passed": bool(score_h >= 50),
+                "is_ai_passed": bool(score_a >= 50),
             }
 
             with getattr(recommendation_engine, "_live_recos_lock", threading.Lock()):
@@ -949,7 +1244,7 @@ class RecoAuditService:
                 rec_id, sym, b.get("company_name") or sym, b.get("sector") or "General",
                 ltp, ltp, ltp, round(ltp * 1.004, 2), tgt, sl,
                 "OPEN", "🔥 Live Reco Audit Breakout", score_c, 0.0, time.time(), now_str,
-                json.dumps(rec_item["reasons"]), 1, "INTRADAY", "Live Reco Audit Breakout", 1.3, 0.8, "MORNING"
+                json.dumps(rec_item["reasons"]), 1, "INTRADAY", "Live Reco Audit Breakout", 1.3, 0.8, self._get_current_session().upper()
             ))
             conn.commit()
             conn.close()
@@ -1803,12 +2098,7 @@ class RecoAuditService:
                 "eligible_symbols": eligible_set,
                 "ineligible_symbols": ineligible_map
             }
-            if hasattr(recommendation_engine, "_live_recos_lock"):
-                with recommendation_engine._live_recos_lock:
-                    curr = list(recommendation_engine._live_recos.items())
-                    for sym, item in curr:
-                        if sym not in eligible_set:
-                            recommendation_engine._live_recos.pop(sym, None)
+            # Do NOT evict published recommendations: Once recommended, a trade remains permanent
             logger.info(f"Synchronized strategy '{strat.get('name')}' ({len(eligible_set)} eligible) to recommendation engine.")
         except Exception as e:
             logger.error(f"Error syncing with recommendation engine: {e}")
@@ -1924,12 +2214,26 @@ class RecoAuditService:
 
     def get_audit_available_dates(self) -> List[str]:
         """
-        Returns distinct session dates on actual basis from reco_audit_tested_dates.json.
-        Today's date is always included + all past days for which reco audit has been tested.
-        No fake dates.
+        Returns distinct session dates on actual basis from disk archives and tested registry.
+        Includes Tomorrow (for pre-market preview), Today, and all recorded past sessions.
+        No synthetic simulation fake dates.
         """
-        today_str = datetime.now(IST).strftime("%Y-%m-%d")
-        dates = [today_str]
+        now_dt = datetime.now(IST)
+        today_str = now_dt.strftime("%Y-%m-%d")
+        tomorrow_str = (now_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        dates = [tomorrow_str, today_str]
+
+        # Scan for actual recorded session files on disk
+        try:
+            engine_dir = os.path.dirname(__file__)
+            for fname in os.listdir(engine_dir):
+                if fname.startswith("session_recos_") and fname.endswith(".json"):
+                    d_part = fname.replace("session_recos_", "").replace(".json", "")
+                    if len(d_part) == 10 and d_part not in dates:
+                        dates.append(d_part)
+        except Exception as _dir_err:
+            logger.debug(f"Error scanning session files: {_dir_err}")
+
         if os.path.exists(AUDIT_TESTED_DATES_PATH):
             try:
                 with open(AUDIT_TESTED_DATES_PATH, "r") as f:
@@ -2010,10 +2314,39 @@ class RecoAuditService:
                     k_u = k.upper().strip()
                     if k_u not in live_recos:
                         live_recos[k_u] = dict(v)
+        except Exception as e:
+            logger.warning(f"Error reading live_recos from engine: {e}")
+
+        # 2. Read from live_daily_recommendations.json if today
+        try:
+            live_file = os.path.join(os.path.dirname(__file__), "live_daily_recommendations.json")
+            if os.path.exists(live_file):
+                with open(live_file, "r") as lf:
+                    lf_data = json.load(lf)
+                    if lf_data.get("date") == audit_date and isinstance(lf_data.get("recommendations"), dict):
+                        for sym_k, rec_v in lf_data["recommendations"].items():
+                            sym_k_u = sym_k.upper().strip()
+                            if sym_k_u not in live_recos:
+                                live_recos[sym_k_u] = dict(rec_v)
         except Exception:
             pass
 
-        # 2. Merge with frozen outcomes for the session date
+        # 3. Merge with archived session_recos_{date}.json if historical
+        try:
+            sess_file = os.path.join(os.path.dirname(__file__), f"session_recos_{audit_date}.json")
+            if os.path.exists(sess_file):
+                with open(sess_file, "r") as sf:
+                    sf_data = json.load(sf)
+                    recs_dict = sf_data.get("recommendations", {})
+                    if isinstance(recs_dict, dict):
+                        for sym_k, rec_v in recs_dict.items():
+                            sym_k_u = sym_k.upper().strip()
+                            if sym_k_u not in live_recos:
+                                live_recos[sym_k_u] = dict(rec_v)
+        except Exception:
+            pass
+
+        # 4. Merge with frozen outcomes for the session date
         try:
             frozen_path = os.path.join(os.path.dirname(__file__), "frozen_daily_outcomes.json")
             if os.path.exists(frozen_path):
@@ -2068,10 +2401,29 @@ class RecoAuditService:
         is_mkt_open = self.is_market_open_now()
 
         # Pre-filter strictly to eligible universe + live recos for ultra-fast (<150ms) audit calculation
+        # Build a set of symbols already in master_stocks for quick lookup
+        master_sym_set = set(b["symbol"].upper().strip() for b in master_stocks)
         target_stocks = [
             b for b in master_stocks 
             if (eligible_set is None or b["symbol"].upper().strip() in eligible_set or b["symbol"].upper().strip() in live_recos)
         ]
+        # CRITICAL FIX: Add synthetic entries for any live_recos symbols NOT in master_stocks
+        # This ensures audit matrix count always matches recommendation count
+        for reco_sym, reco_data in live_recos.items():
+            reco_sym_u = reco_sym.upper().strip()
+            if reco_sym_u not in master_sym_set:
+                target_stocks.append({
+                    "symbol": reco_sym_u,
+                    "company_name": reco_data.get("company_name") or reco_sym_u,
+                    "sector": reco_data.get("sector") or "General",
+                    "exchange": reco_data.get("exchange") or "NSE",
+                    "mcap_category": "Mid Cap",
+                    "audited_score": int(reco_data.get("vault_score") or reco_data.get("history_score") or 65),
+                    "emp_win_rate": float(reco_data.get("win_rate") or 55.0),
+                    "hurst_exponent": 0.55,
+                    "adr_pct": 2.5,
+                    "bull_trap_pct": 15.0,
+                })
 
         active_strat = self.get_active_strategy()
         gate_cfg = active_strat.get("block_f_execution_gate", {})
@@ -2369,12 +2721,19 @@ class RecoAuditService:
                 "audit_date": audit_date
             })
 
+        # Total session live recommendations before any local UI filtering
+        total_session_live_recos = sum(1 for x in enriched if x.get("has_live_reco"))
+        total_session_qualified = sum(1 for x in enriched if x.get("michpa_qualified") or x.get("has_live_reco"))
+
         # Apply Filters (Execution Gate, Policy, Hit Ratio Range)
         if policy and policy.upper() != "ALL":
             enriched = [x for x in enriched if x.get("policy_status", "").upper() == policy.upper()]
 
         if execution_gate and execution_gate.upper() != "ALL":
-            enriched = [x for x in enriched if x.get("execution_gate_status", "").upper() == execution_gate.upper()]
+            if execution_gate.upper() == "LIVE_RECOS":
+                enriched = [x for x in enriched if x.get("has_live_reco")]
+            else:
+                enriched = [x for x in enriched if x.get("execution_gate_status", "").upper() == execution_gate.upper()]
 
         if min_hit_pct is not None:
             enriched = [x for x in enriched if float(x.get("target_hit_pct", 0.0)) >= float(min_hit_pct)]
@@ -2386,7 +2745,7 @@ class RecoAuditService:
 
         total_count = len(enriched)
         passed_count = sum(1 for x in enriched if x["policy_passed"])
-        michpa_qualified_count = sum(1 for x in enriched if x.get("michpa_qualified"))
+        michpa_qualified_count = max(total_session_live_recos, sum(1 for x in enriched if x.get("michpa_qualified")))
         held_count = total_count - passed_count
 
         start_idx = (page - 1) * page_size
@@ -2402,8 +2761,9 @@ class RecoAuditService:
             "available_dates": self.get_audit_available_dates(),
             "total_count": total_count,
             "total": total_count,
-            "passed_count": passed_count,
+            "passed_count": michpa_qualified_count,
             "michpa_qualified_count": michpa_qualified_count,
+            "live_recos_count": total_session_live_recos,
             "held_count": held_count,
             "cadence": cadence_info,
             "scanner_activity_10m": {

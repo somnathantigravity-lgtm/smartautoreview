@@ -309,10 +309,19 @@ export default function TradeOnePagerModal({
     async function loadAudit() {
       try {
         const datePart = (trade as any)?.signal_date || (trade?.signal_datetime ? trade.signal_datetime.split(" ")[0] : "");
-        let trigVol = (trade as any)?.trigger_rvol;
+        let trigVol = (trade as any)?.trigger_rvol ?? (trade as any)?.rvol;
         if (!trigVol && (trade as any)?.reco_reason) {
-          const m = (trade as any).reco_reason.match(/with\s+([\d\.]+)x\s+volume/);
+          const m = (trade as any).reco_reason.match(/([\d\.]+)x/i);
           if (m) trigVol = parseFloat(m[1]);
+        }
+        if (!trigVol && Array.isArray((trade as any)?.why_buy_reasons)) {
+          for (const reason of (trade as any).why_buy_reasons) {
+            const m = String(reason).match(/([\d\.]+)x/i);
+            if (m) {
+              trigVol = parseFloat(m[1]);
+              break;
+            }
+          }
         }
         const volParam = trigVol ? `&trigger_rvol=${trigVol}` : "";
         const url = `/api/v1/simulation/trade-audit/${encodeURIComponent(trade?.symbol || "")}?price=${trade?.entry_price || 0}&time=${encodeURIComponent(trade?.signal_time || "")}&date=${encodeURIComponent(datePart)}&score=${trade?.score_100 || 80}&raw_score=${trade?.raw_score || 46}&outcome=${encodeURIComponent(trade?.outcome || "SUCCESS")}${volParam}`;

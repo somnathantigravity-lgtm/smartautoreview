@@ -2785,6 +2785,29 @@ class RecoSimulationEngine:
             "exchange": "NSE"
         }
 
+        # Automatic fallback: check archived session recos if trigger_rvol or other live params are missing
+        eval_date_check = signal_date or datetime.now(IST).strftime("%Y-%m-%d")
+        sess_reco = None
+        try:
+            sess_file = os.path.join(os.path.dirname(__file__), f"session_recos_{eval_date_check}.json")
+            if os.path.exists(sess_file):
+                with open(sess_file, "r") as sf:
+                    sf_data = json.load(sf)
+                    recs = sf_data.get("recommendations", {})
+                    sess_reco = recs.get(sym) or recs.get(sym.upper())
+        except Exception as se_err:
+            logger.debug(f"Could not load session reco for {sym}: {se_err}")
+
+        if sess_reco:
+            if (trigger_rvol is None or trigger_rvol <= 0) and sess_reco.get("trigger_rvol"):
+                trigger_rvol = float(sess_reco["trigger_rvol"])
+            if not signal_time and sess_reco.get("trigger_time"):
+                signal_time = str(sess_reco["trigger_time"])
+            if (not entry_price or entry_price <= 0) and sess_reco.get("entry_price"):
+                entry_price = float(sess_reco["entry_price"])
+            if score is None and sess_reco.get("score_100"):
+                score = int(sess_reco["score_100"])
+
         is_strong = (v_data["audited_score"] >= 75)
         vwap_val = round(entry_price * (1.0 - (v_data["vwap_dist_avg"] / 100.0)), 2)
         ema20_val = round(entry_price * 0.985, 2)
@@ -3456,13 +3479,20 @@ class RecoSimulationEngine:
             strategy=strategy
         )
 
-        # Enforce strict 100% parameter match across all active rules:
+        # Enforce strict criteria across active strategy rules:
         # - Knockout Guardrails (Pillar I): ALL active parameters MUST PASS (100% match)
         # - Execution Gate (Pillar P): ALL active parameters MUST PASS (100% match)
         # - Morning Filters (Pillar M): ALL active parameters MUST PASS (100% match)
+        # - Current Setup (Pillar C): Minimum 60% score cutoff
+        # - Historical Proof (Pillar H): Minimum 60% score cutoff
         pillar_i_passed_all = True
         pillar_p_passed_all = True
         pillar_m_passed_all = True
+        pillar_c_passed_60 = True
+        pillar_h_passed_60 = True
+        c_score_pct = 75
+        h_score_pct = 70
+
         for p in dynamic_audit.get("pillars", []):
             if p["id"] == "pillar_i":
                 tot = p.get("total_count", 0)
@@ -3473,8 +3503,16 @@ class RecoSimulationEngine:
             elif p["id"] == "pillar_m":
                 tot = p.get("total_count", 0)
                 pillar_m_passed_all = bool(tot > 0 and p.get("passed_count") == tot)
+            elif p["id"] == "pillar_c":
+                tot = p.get("total_count", 0)
+                c_score_pct = int(round((p.get("passed_count", 0) / max(1, tot)) * 100)) if tot > 0 else 75
+                pillar_c_passed_60 = bool(c_score_pct >= 60)
+            elif p["id"] == "pillar_h":
+                tot = p.get("total_count", 0)
+                h_score_pct = int(round((p.get("passed_count", 0) / max(1, tot)) * 100)) if tot > 0 else int(hist_win_rate)
+                pillar_h_passed_60 = bool(h_score_pct >= 60 or hist_win_rate >= 60.0)
 
-        is_eligible = bool((score_100 >= 80) and pillar_i_passed_all and pillar_p_passed_all and pillar_m_passed_all)
+        is_eligible = bool((score_100 >= 60) and pillar_i_passed_all and pillar_p_passed_all and pillar_m_passed_all and pillar_c_passed_60 and pillar_h_passed_60)
 
         # 4. CRISP 1-LINE RECOMMENDATION VERDICT
         if not pillar_i_passed_all:
@@ -3484,13 +3522,17 @@ class RecoSimulationEngine:
         elif not pillar_p_passed_all:
             passed_p = next((p["passed_count"] for p in dynamic_audit.get("pillars", []) if p["id"] == "pillar_p"), 0)
             total_p = next((p["total_count"] for p in dynamic_audit.get("pillars", []) if p["id"] == "pillar_p"), 0)
-            one_line_verdict = f"Score: {score_100}/100 · ❌ Execution Gate Veto ({passed_p}/{total_p} passed). All {total_p} active triggers are strictly required — recommendation vetoed."
+            one_line_verdict = f"Score: {score_100}/100 · ❌ Execution Gate Veto ({passed_p}/{total_p} passed). All {total_p} active priority triggers are strictly required — recommendation vetoed."
         elif not pillar_m_passed_all:
             passed_m = next((p["passed_count"] for p in dynamic_audit.get("pillars", []) if p["id"] == "pillar_m"), 0)
             total_m = next((p["total_count"] for p in dynamic_audit.get("pillars", []) if p["id"] == "pillar_m"), 0)
             one_line_verdict = f"Score: {score_100}/100 · ❌ Morning Filter Veto ({passed_m}/{total_m} passed). All {total_m} active filters are strictly required — recommendation vetoed."
-        elif score_100 < 80:
-            one_line_verdict = f"Score: {score_100}/100 ({raw_score}/57 pts) · Confluence score falls below 80 minimum threshold. Awaiting secondary breakout confirmation."
+        elif not pillar_c_passed_60:
+            one_line_verdict = f"Score: {score_100}/100 · ❌ Pillar C Current Setup Veto ({c_score_pct}% < 60% minimum cutoff)."
+        elif not pillar_h_passed_60:
+            one_line_verdict = f"Score: {score_100}/100 · ❌ Pillar H 60-Day Historical Proof Veto ({h_score_pct}% < 60% minimum cutoff)."
+        elif score_100 < 60:
+            one_line_verdict = f"Score: {score_100}/100 ({raw_score}/57 pts) · Confluence score falls below 60 minimum threshold. Awaiting secondary breakout confirmation."
         else:
             one_line_verdict = f"Score: {score_100}/100 ({raw_score}/57 pts) · ✓ Fully Eligible Recommendation (100% Guardrails & Execution Gates Met)."
 

@@ -12,6 +12,7 @@ backend/app/engine/gemini_config.json
 backend/xkiro_config.json
 backend/.dhan_session.json
 backend/.dhan_totp_config.json
+backend/app/engine/dhan_config.json
 backend/.users_db.json
 backend/.saved_custom_formulas.json
 *.pem

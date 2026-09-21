@@ -1,0 +1,16 @@
+[Unit]
+Description=Apex Quant / SmartAutoReview Multi-Portal Router (Ports 3001 & 3002)
+After=network.target smartauto-frontend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/stock/frontend
+ExecStart=/usr/bin/node /var/www/stock/frontend/portal_router.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/smartauto-portal-router.log
+StandardError=append:/var/log/smartauto-portal-router.error.log
+
+[Install]
+WantedBy=multi-user.target

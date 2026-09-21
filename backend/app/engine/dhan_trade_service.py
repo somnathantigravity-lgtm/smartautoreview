@@ -450,10 +450,18 @@ class DhanTradeService:
         if not self.dhan_client:
             raise RuntimeError("Dhan trading client is not connected. Please verify credentials in Settings.")
 
-        # Check and auto-sync dynamic IP if needed
+        # Check and auto-sync dynamic IP if needed (force-clear cache for reliability)
         try:
             from app.engine.dhan_ip_service import dhan_ip_service
-            dhan_ip_service.check_and_sync_ip()
+            dhan_ip_service.last_check_time = 0  # Force fresh check
+            dhan_ip_service.cached_status = {}
+            ip_result = dhan_ip_service.check_and_sync_ip(force=True)
+            if ip_result.get("ordersAllowed"):
+                logger.info(f"Pre-trade IP check OK: {ip_result.get('currentIP')} ({ip_result.get('ipMatchStatus')})")
+            else:
+                logger.warning(f"Pre-trade IP check: ordersAllowed=False! {ip_result.get('message', '')}")
+                # Reinitialize client in case IP was just updated
+                self._init_dhan_client()
         except Exception as _e:
             logger.warning(f"Could not check dynamic IP before trade: {_e}")
 
@@ -526,7 +534,41 @@ class DhanTradeService:
                     target_remarks = f"Native Bracket Exit Target Active (Super Order ID: {buy_order_id})"
                     is_super_order_placed = True
                 else:
-                    logger.warning(f"Dhan Super Order rejected: {super_resp}. Falling back to standard entry + SL.")
+                    # Check if IP error on super order and retry after sync
+                    so_err = str(super_resp.get("remarks") or super_resp.get("message") or "")
+                    if "ip" in so_err.lower() or "invalid" in so_err.lower() or "whitelist" in so_err.lower():
+                        logger.info(f"IP error on Super Order: {so_err}. Syncing IP and retrying...")
+                        try:
+                            from app.engine.dhan_ip_service import dhan_ip_service
+                            dhan_ip_service.last_check_time = 0
+                            dhan_ip_service.cached_status = {}
+                            ip_sync = dhan_ip_service.check_and_sync_ip(force=True)
+                            if ip_sync.get("ordersAllowed"):
+                                self._init_dhan_client()
+                                time.sleep(1.0)
+                                super_resp2 = self.dhan_client.place_super_order(
+                                    security_id=str(sec_id),
+                                    exchange_segment=dhan_exch,
+                                    transaction_type=self.dhan_client.BUY,
+                                    quantity=quantity,
+                                    order_type=self.dhan_client.LIMIT,
+                                    product_type=dhan_prod,
+                                    price=entry_price,
+                                    targetPrice=target_val,
+                                    stopLossPrice=sl_val,
+                                    tag=f"apx_{int(time.time())}"
+                                )
+                                if super_resp2.get("status") == "success":
+                                    buy_order_id = str(super_resp2.get("data", {}).get("orderId") or "DHAN_SUPER_ORD")
+                                    sl_order_id = f"super_sl_{buy_order_id}"
+                                    target_order_id = f"super_tgt_{buy_order_id}"
+                                    sl_remarks = f"Native Bracket Stop-Loss Active (Super Order ID: {buy_order_id})"
+                                    target_remarks = f"Native Bracket Exit Target Active (Super Order ID: {buy_order_id})"
+                                    is_super_order_placed = True
+                        except Exception as e_ip_so:
+                            logger.warning(f"IP sync retry for Super Order failed: {e_ip_so}")
+                    if not is_super_order_placed:
+                        logger.warning(f"Dhan Super Order rejected: {super_resp}. Falling back to standard entry + SL.")
             except Exception as e_super:
                 logger.warning(f"place_super_order not supported for {sym}: {e_super}. Falling back to standard entry + SL.")
 
@@ -548,14 +590,19 @@ class DhanTradeService:
             if buy_resp.get("status") != "success":
                 err_msg = str(buy_resp.get("remarks") or buy_resp.get("message") or "Order rejected by Dhan.")
                 # If Dhan rejected due to IP mismatch/whitelist, auto-register current IP immediately and retry!
-                if "ip" in err_msg.lower():
+                if "ip" in err_msg.lower() or "invalid" in err_msg.lower() or "whitelist" in err_msg.lower():
                     logger.info(f"Dhan IP error detected: {err_msg}. Attempting immediate auto-registration...")
                     try:
                         from app.engine.dhan_ip_service import dhan_ip_service
+                        # Force-clear cached IP status so we always do a fresh check
+                        dhan_ip_service.last_check_time = 0
+                        dhan_ip_service.cached_status = {}
                         ip_sync = dhan_ip_service.check_and_sync_ip(force=True)
                         if ip_sync.get("ordersAllowed"):
-                            logger.info(f"IP auto-registered successfully ({ip_sync.get('currentIP')})! Retrying BUY order...")
-                            time.sleep(0.5)
+                            logger.info(f"IP auto-registered successfully ({ip_sync.get('currentIP')})! Reinitializing client & retrying BUY order...")
+                            # Reinitialize the Dhan SDK client so it picks up the new IP state
+                            self._init_dhan_client()
+                            time.sleep(1.0)
                             buy_resp = self.dhan_client.place_order(
                                 security_id=str(sec_id),
                                 exchange_segment=dhan_exch,
@@ -566,9 +613,11 @@ class DhanTradeService:
                                 price=entry_price,
                                 validity='DAY'
                             )
-                            logger.info(f"Dhan retry BUY response: {buy_resp}")
+                            logger.info(f"Dhan retry BUY response after IP sync: {buy_resp}")
                             if buy_resp.get("status") == "success":
                                 err_msg = ""
+                        else:
+                            logger.warning(f"IP sync completed but ordersAllowed is still False: {ip_sync}")
                     except Exception as e_retry:
                         logger.warning(f"Error during automatic IP registration & retry: {e_retry}")
 

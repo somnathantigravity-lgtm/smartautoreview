@@ -1,0 +1,18 @@
+[Unit]
+Description=Apex Quant / SmartAutoReview FastAPI Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/stock/backend
+Environment="PYTHONPATH=/var/www/stock/backend"
+EnvironmentFile=-/var/www/stock/backend/.env
+ExecStart=/var/www/stock/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/smartauto-backend.log
+StandardError=append:/var/log/smartauto-backend.error.log
+
+[Install]
+WantedBy=multi-user.target

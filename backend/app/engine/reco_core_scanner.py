@@ -399,11 +399,14 @@ def scan_intraday_candles_for_setup(
         cum_pv += (((k_hi + k_lo + k_cl) / 3.0) * k_vol)
 
     day_high = float(candles[0]["high"])
+    orb_high_15m = max(float(candles[k]["high"]) for k in range(min(15, len(candles))))
+    orb_low_15m = min(float(candles[k]["low"]) for k in range(min(15, len(candles))))
     trigger_idx = None
     entry_price = 0.0
     trigger_rvol = 1.0
     trigger_session = "MORNING"
     trigger_session_label = "Morning Breakout"
+    trigger_setup_type = "HOD_BREAKOUT"
     trigger_rs = 0.008
     trigger_nifty_ok = True
 
@@ -552,10 +555,28 @@ def scan_intraday_candles_for_setup(
                 day_high = max(day_high, hi)
                 continue
 
-        is_hod_break = (cl >= day_high * hod_tol)
+        # 1. Early 15-Minute Opening Range Breakout (ORB-15) - Triggers between 09:20 and 10:15 near morning low
+        is_orb_break = bool(time_str <= "10:15:00" and orb_high_15m > 0 and cl >= orb_high_15m * 0.998 and cl >= op and rvol >= max(1.15, min_rvol * 0.9))
 
-        # Trigger Condition: Breakout above HOD (with configured tolerance) or strong ignition
-        if is_hod_break and cl >= op and rvol >= min_rvol:
+        # 2. VWAP Pullback Reclaim & Bounce ("Dip-and-Rip") - Catches reversal off VWAP/20 EMA support near Day Low
+        recent_bars = candles[max(0, i - 4): i]
+        min_recent_lo = min(float(b["low"]) for b in recent_bars) if recent_bars else lo
+        tested_vwap_support = (min_recent_lo <= vwap_now * 1.0035 and min_recent_lo >= vwap_now * 0.992)
+        is_vwap_bounce = bool(
+            tested_vwap_support
+            and cl > op
+            and cl >= vwap_now * 1.0005
+            and close_pos >= 0.55
+            and rvol >= max(1.10, min_rvol * 0.85)
+        )
+
+        # 3. Classic High-of-Day Breakout (HOD)
+        is_hod_break = bool(cl >= day_high * hod_tol and cl >= op and rvol >= min_rvol)
+
+        # Trigger Condition: Early ORB, VWAP bounce ignition, or HOD Breakout
+        if (is_orb_break or is_vwap_bounce or is_hod_break) and cl >= op:
+            active_setup_type = "VWAP_PULLBACK" if is_vwap_bounce else ("ORB_15M" if is_orb_break else "HOD_BREAKOUT")
+            active_label = "VWAP Dip & Bounce" if is_vwap_bounce else ("15-Min ORB Breakout" if is_orb_break else session_label)
             # Check 1-bar anti-fakeout confirmation if subsequent candle exists
             if i + 1 < len(candles):
                 c1 = candles[i + 1]
@@ -565,7 +586,8 @@ def scan_intraday_candles_for_setup(
                     trigger_idx = i
                     trigger_rvol = rvol
                     trigger_session = session
-                    trigger_session_label = session_label
+                    trigger_session_label = active_label
+                    trigger_setup_type = active_setup_type
                     trigger_rs = relative_strength
                     trigger_nifty_ok = nifty_trend_ok
                     entry_price = float(candles[i + 2]["open"]) if i + 2 < len(candles) else c1_cl
@@ -575,7 +597,8 @@ def scan_intraday_candles_for_setup(
                 trigger_idx = i
                 trigger_rvol = rvol
                 trigger_session = session
-                trigger_session_label = session_label
+                trigger_session_label = active_label
+                trigger_setup_type = active_setup_type
                 trigger_rs = relative_strength
                 trigger_nifty_ok = nifty_trend_ok
                 entry_price = cl
@@ -725,6 +748,15 @@ def scan_intraday_candles_for_setup(
         "trigger_session": trigger_session,
         "trigger_session_label": trigger_session_label,
         "trigger_rvol": round(trigger_rvol, 2),
+        "trigger_setup_type": trigger_setup_type,
+        "trigger_vwap": round(vwap_now, 2),
+        "trigger_above_vwap": bool(c1_close >= vwap_now),
+        "trigger_day_high_dist_pct": round(dist_from_day_high_pit * 100, 2),
+        "trigger_near_day_high": bool(dist_from_day_high_pit <= 0.02),
+        "trigger_buy_volume": int(c1_vol),
+        "trigger_total_volume": int(cum_vol),
+        "orb_high_15m": round(orb_high_15m, 2),
+        "orb_low_15m": round(orb_low_15m, 2),
         "adr_pct": round(adr_pct_pit * 100, 2),
         "hurst_exponent": round(hurst, 3),
         "is_nr7": is_nr7,

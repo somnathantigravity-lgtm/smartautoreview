@@ -169,12 +169,13 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
   const [totalCount, setTotalCount] = useState<number>(0);
   const [passedCount, setPassedCount] = useState<number>(0);
   const [heldCount, setHeldCount] = useState<number>(0);
+  const [liveRecosCount, setLiveRecosCount] = useState<number>(0);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [selectedGate, setSelectedGate] = useState<"ALL" | "GO" | "WAITING">("ALL");
+  const [selectedGate, setSelectedGate] = useState<"ALL" | "GO" | "WAITING" | "LIVE_RECOS">("ALL");
   const [selectedPolicy, setSelectedPolicy] = useState<"ALL" | "PASSED" | "HELD">("ALL");
   const [hitRatioPreset, setHitRatioPreset] = useState<"ALL" | "GE_80" | "GE_50" | "LT_50" | "CUSTOM">("ALL");
   const [minHitRatio, setMinHitRatio] = useState<number | null>(null);
@@ -371,6 +372,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
       setTotalCount(data.total_count || 0);
       setPassedCount(data.michpa_qualified_count !== undefined ? data.michpa_qualified_count : (data.passed_count || 0));
       setHeldCount(data.held_count || 0);
+      setLiveRecosCount(data.live_recos_count !== undefined ? data.live_recos_count : (data.michpa_qualified_count || 0));
       setHasMore((data.items || []).length < (data.total_count || 0));
 
       if (data.available_dates && Array.isArray(data.available_dates)) {
@@ -593,6 +595,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
         if (data.total_count !== undefined) setTotalCount(data.total_count);
         if (data.michpa_qualified_count !== undefined) setPassedCount(data.michpa_qualified_count);
         else if (data.passed_count !== undefined) setPassedCount(data.passed_count);
+        if (data.live_recos_count !== undefined) setLiveRecosCount(data.live_recos_count);
         if (data.held_count !== undefined) setHeldCount(data.held_count);
       }
     } catch {
@@ -615,6 +618,9 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
         return false;
       }
       if (selectedGate === "WAITING" && item.execution_gate_status !== "WAITING") {
+        return false;
+      }
+      if (selectedGate === "LIVE_RECOS" && !item.has_live_reco) {
         return false;
       }
       // Hit Ratio Filter
@@ -1230,6 +1236,19 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
                   }`}
                 >
                   All Gates
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGate("LIVE_RECOS")}
+                  className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1 ${
+                    selectedGate === "LIVE_RECOS"
+                      ? "bg-indigo-600 text-white shadow-2xs font-black"
+                      : "text-indigo-700 hover:bg-indigo-50/70"
+                  }`}
+                  title="Filter to all active recommendations shown in the Recommendations tab"
+                >
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Live Recos ({liveRecosCount || passedCount})</span>
                 </button>
                 <button
                   type="button"
