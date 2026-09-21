@@ -56,8 +56,9 @@ export function TerminalApp({
       const port = window.location.port;
       const params = new URLSearchParams(window.location.search);
       const portalParam = params.get("portal");
-      if (port === "3002" || portalParam === "admin") return "admin";
-      if (port === "3000" || portalParam === "special") return "special";
+      const path = window.location.pathname.toLowerCase();
+      if (port === "3002" || portalParam === "admin" || path.startsWith("/admin")) return "admin";
+      if (port === "3000" || portalParam === "special" || path.startsWith("/terminal") || path.startsWith("/super")) return "special";
       // Default website (port 3001, or default domain smartautoreviews.com)
       return "normal";
     }
