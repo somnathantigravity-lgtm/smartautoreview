@@ -1698,25 +1698,27 @@ class RecommendationEngine:
             }
 
         # Market Opening Warmup Window (09:15 - 09:30 AM IST):
-        # Accumulating 15 one-minute candles across screened universe before trade evaluation
+        # Accumulating 15 one-minute candles across ALL master stocks before trade evaluation
         is_warmup_window = is_mkt_open and (9 * 60 + 15 <= now_minutes < 9 * 60 + 30)
         if not is_historical_request and is_warmup_window and len(self._live_recos) == 0:
-            total_universe = len(self._get_approved_universe_tickers())
+            total_screened = len(self._get_approved_universe_tickers())
+            total_master = len(dhan_provider.stocks_cache) if (dhan_provider and dhan_provider.stocks_cache) else 5087
             return {
                 "status": "WARMUP_IN_PROGRESS",
                 "is_market_open": True,
                 "mode": (mode or "CURRENT").upper(),
                 "count": 0,
-                "total_scanned_in_current": total_universe,
-                "last_scan_time": f"{now_ist.strftime('%H:%M:%S')} IST (Accumulating 15-Min Candle Base)",
+                "total_scanned_in_current": total_screened,
+                "total_master_universe": total_master,
+                "last_scan_time": f"{now_ist.strftime('%H:%M:%S')} IST (Accumulating 15-Min Candle Base Across All {total_master} Stocks)",
                 "broker_status": "CONNECTED",
-                "broker_packets": dhan_provider.get_connection_status().get("websocket_packets", 0),
+                "broker_packets": dhan_provider.get_connection_status().get("websocket_packets", 0) if dhan_provider else 0,
                 "broker_source": "Dhan WebSocket",
                 "recommendations": [],
                 "available_dates": available_market_dates,
                 "is_pre_market": False,
                 "is_warmup": True,
-                "message": f"Dalal Street opened at 09:15 AM. Scanner is accumulating the initial 15-minute opening base across {total_universe} screened stocks. Real-time momentum breakouts will trigger from 09:30 AM IST onwards."
+                "message": f"Dalal Street opened at 09:15 AM. System is capturing 1-minute opening candles across ALL {total_master} stocks. Real-time ICHPA recommendations across {total_screened} eligible stocks will trigger from 09:30 AM IST onwards."
             }
 
         # If a past market day is requested, only return actual live recommendations emitted by the system
@@ -2296,33 +2298,21 @@ class RecommendationEngine:
             logger.error(f"Error purging today's recommendations from recommendations.db: {e}")
 
     def _get_approved_universe_tickers(self) -> List[Dict[str, Any]]:
-        """Returns cached list of approved universe tickers strictly filtered by morning_screening_state.json (1,119 stocks)."""
+        """Returns cached list of approved universe tickers strictly filtered by active strategy morning shield."""
         now_ts = time.time()
-        if self._cached_universe_tickers and (now_ts - self._universe_last_cached_ts < 300.0):
+        if self._cached_universe_tickers and (now_ts - self._universe_last_cached_ts < 15.0):
             return self._cached_universe_tickers
         try:
-            # Check morning screening state for eligible symbols
+            # Dynamically evaluate active strategy morning shield rules set by SuperUser (zero hardcoded / zero static cache)
             eligible_set = None
             try:
-                screening_path = os.path.join(os.path.dirname(__file__), "morning_screening_state.json")
-                if os.path.exists(screening_path):
-                    with open(screening_path, "r") as sf:
-                        st_data = json.load(sf)
-                        sym_list = st_data.get("eligible_symbols", [])
-                        if sym_list:
-                            eligible_set = set(s.upper().strip() for s in sym_list)
+                from app.engine.reco_audit_service import reco_audit_service
+                st_data = reco_audit_service.get_screening_status()
+                sym_list = st_data.get("eligible_symbols", [])
+                if sym_list:
+                    eligible_set = set(s.upper().strip() for s in sym_list)
             except Exception as _sc_err:
-                logger.warning(f"Could not load morning screening state: {_sc_err}")
-
-            if not eligible_set:
-                try:
-                    from app.engine.reco_audit_service import reco_audit_service
-                    st_data = reco_audit_service.get_screening_status()
-                    sym_list = st_data.get("eligible_symbols", [])
-                    if sym_list:
-                        eligible_set = set(s.upper().strip() for s in sym_list)
-                except Exception as _sc_err2:
-                    logger.warning(f"Could not load screening status fallback: {_sc_err2}")
+                logger.warning(f"Could not load dynamic screening status: {_sc_err}")
 
             from app.engine.reco_simulation_engine import HISTORY_DB_PATH
             conn = sqlite3.connect(HISTORY_DB_PATH, timeout=20.0)
@@ -2372,10 +2362,16 @@ class RecommendationEngine:
             logger.error(f"Error loading approved universe tickers: {e}")
             return self._cached_universe_tickers
 
-    def _run_rolling_micro_batch_scanner(self, session_date: Optional[str] = None, batch_size: int = 500):
+    def _run_rolling_micro_batch_scanner(self, session_date: Optional[str] = None, batch_size: Optional[int] = None):
         """
-        Rolling Micro-Batch Engine:
-        Evaluates 500 stocks every 5 seconds, cycling through all ~3,349 pre-filtered stocks in ~35 seconds.
+        Real-Time ICHPA Scanner Engine:
+        Evaluates ALL eligible screened stocks every 5 seconds against strict ICHPA gates:
+        - Pillar I: 100% of all 11 Knockout Guardrails mandatory.
+        - Pillar P: 100% of all 8 Priority Execution Gates mandatory.
+        - Pillar M: 100% of active Morning Filters mandatory.
+        - Pillar C: >= 60% minimum cutoff.
+        - Pillar H: >= 60% minimum cutoff.
+        - Pillar A: >= 60% minimum cutoff.
         Uses indexed timestamp queries for sub-second execution.
         """
         if self._live_scan_in_progress:
@@ -2387,10 +2383,8 @@ class RecommendationEngine:
                 return
 
             total_stocks = len(tickers)
-            cursor = self._universe_cursor
-            batch = tickers[cursor : cursor + batch_size]
-            # Advance cursor (wrap around smoothly)
-            self._universe_cursor = (cursor + batch_size) % total_stocks if total_stocks > 0 else 0
+            # Evaluate ALL eligible screened stocks every 5 seconds (not just 500)
+            batch = tickers if (batch_size is None or batch_size >= total_stocks) else tickers[:batch_size]
 
             from app.engine.reco_simulation_engine import HISTORY_DB_PATH
             conn = sqlite3.connect(HISTORY_DB_PATH, timeout=20.0)
@@ -2522,6 +2516,7 @@ class RecommendationEngine:
                         p_m = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_m"), None)
                         p_c = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_c"), None)
                         p_h = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_h"), None)
+                        p_a = next((p for p in audit.get("pillars", []) if p["id"] == "pillar_a"), None)
 
                         # Strict Dual Mandatory Gates (100% Required):
                         # - Pillar I: 100% of active Knockout Guardrails (11/11) must pass
@@ -2531,7 +2526,7 @@ class RecommendationEngine:
                         p_passed_all = bool(p_p and p_p.get("total_count", 0) > 0 and p_p.get("passed_count") == p_p.get("total_count"))
                         m_passed_all = bool(p_m and p_m.get("total_count", 0) > 0 and p_m.get("passed_count") == p_m.get("total_count"))
 
-                        # Confluence Scoring Gates (≥ 60% Required for C & H):
+                        # Confluence Scoring Gates (≥ 60% Required for C, H & A):
                         c_tot = p_c.get("total_count", 0) if p_c else 0
                         c_pass = p_c.get("passed_count", 0) if p_c else 0
                         c_score = int(round((c_pass / max(1, c_tot)) * 100)) if c_tot > 0 else int(setup.get("score_100", 0))
@@ -2542,8 +2537,13 @@ class RecommendationEngine:
                         h_score = int(round((h_pass / max(1, h_tot)) * 100)) if h_tot > 0 else int(setup.get("vault_score", 0))
                         h_passed_60 = bool(h_score >= 60 or float(setup.get("vault_score", 0)) >= 60.0)
 
-                        # Hard Veto: If I (100%), P (100%), M (100%), C (>=60%), or H (>=60%) fails, VETO candidate
-                        if not i_passed_all or not p_passed_all or not m_passed_all or not c_passed_60 or not h_passed_60:
+                        a_tot = p_a.get("total_count", 0) if p_a else 0
+                        a_pass = p_a.get("passed_count", 0) if p_a else 0
+                        a_score = int(round((a_pass / max(1, a_tot)) * 100)) if a_tot > 0 else int(audit.get("ai_vision_score", 70))
+                        a_passed_60 = bool(a_score >= 60)
+
+                        # Hard Veto: If I (100%), P (100%), M (100%), C (>=60%), H (>=60%), or A (>=60%) fails, VETO candidate
+                        if not i_passed_all or not p_passed_all or not m_passed_all or not c_passed_60 or not h_passed_60 or not a_passed_60:
                             continue
                     except Exception:
                         continue
@@ -4052,6 +4052,15 @@ class RecommendationEngine:
                     if now_ist.hour == 8 and now_ist.minute >= 45:
                         self.ensure_solvency_gate_synced()
 
+                    # Trigger 09:30 AM sharp 15-Minute Opening Candle Catchup across ALL master stocks
+                    if now_ist.hour == 9 and now_ist.minute == 30 and now_ist.weekday() <= 4:
+                        try:
+                            from app.engine.intraday_today_catchup import today_catchup_service
+                            threading.Thread(target=today_catchup_service.catchup_today_candles, daemon=True, name="Opening15MinCatchupAll").start()
+                            logger.info("Auto-triggered 09:30 AM Opening 15-Minute Candle Catchup across ALL master stocks.")
+                        except Exception as e_c30:
+                            logger.warning(f"Error triggering 09:30 AM catchup: {e_c30}")
+
                     # Check if within trading window (09:15 to 14:45 IST)
                     if (now_ist.weekday() <= 4 and 
                         datetime.strptime("09:15:00", "%H:%M:%S").time() <= now_ist.time() <= datetime.strptime("14:45:00", "%H:%M:%S").time()):
@@ -4072,13 +4081,13 @@ class RecommendationEngine:
                     logger.debug(f"Watchdog tick error: {e}")
 
         def _rolling_micro_batch_loop():
-            logger.info("Continuous Rolling Micro-Batch Scanner started (500 stocks / 5s).")
+            logger.info("Continuous ICHPA Scanner started (All eligible stocks / 5s).")
             while self.is_scheduler_running:
                 try:
                     self._run_rolling_micro_batch_scanner()
                 except Exception as e:
                     logger.error(f"Rolling micro-batch scanner error: {e}")
-                time.sleep(5)  # Evaluates 500 stocks every 5s (~35s per full 3,349 universe cycle)
+                time.sleep(5)  # Evaluates ALL eligible stocks every 5s
 
         self._scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True, name="Rec-Scheduler")
         self._watchdog_thread = threading.Thread(target=_watchdog_loop, daemon=True, name="Rec-Watchdog")

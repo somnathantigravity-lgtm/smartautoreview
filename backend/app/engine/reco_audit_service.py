@@ -1834,6 +1834,13 @@ class RecoAuditService:
             raise ValueError(f"Strategy '{strategy_id}' not found.")
         data["active_strategy_id"] = strategy_id
         self.save_strategies_data(data)
+        try:
+            self.sync_strategy_universe(strategy_id)
+            from app.engine.recommendation_engine import recommendation_engine
+            recommendation_engine._cached_universe_tickers = None
+            recommendation_engine._universe_last_cached_ts = 0.0
+        except Exception as e_sync:
+            logger.warning(f"Error auto-syncing universe on set_active_strategy: {e_sync}")
         return self.get_active_strategy()
 
     def deactivate_active_strategy(self) -> Dict[str, Any]:
@@ -1861,6 +1868,13 @@ class RecoAuditService:
         target["is_active"] = target_state
         if target_state:
             data["active_strategy_id"] = strategy_id
+            try:
+                self.sync_strategy_universe(strategy_id)
+                from app.engine.recommendation_engine import recommendation_engine
+                recommendation_engine._cached_universe_tickers = None
+                recommendation_engine._universe_last_cached_ts = 0.0
+            except Exception as e_sync:
+                logger.warning(f"Error auto-syncing universe on toggle_strategy_active: {e_sync}")
         else:
             if data.get("active_strategy_id") == strategy_id:
                 data["active_strategy_id"] = None
@@ -1874,7 +1888,7 @@ class RecoAuditService:
         }
 
     def save_strategy(self, strat: Dict[str, Any]) -> Dict[str, Any]:
-        """Saves a new or updated strategy."""
+        """Saves a new or updated strategy and immediately synchronizes the screened universe."""
         data = self.get_strategies_data()
         strats = data.get("strategies", [])
         s_id = strat.get("id")
@@ -1905,6 +1919,19 @@ class RecoAuditService:
 
         data["strategies"] = strats
         self.save_strategies_data(data)
+
+        # Dynamic instant universe sync whenever active strategy or default is updated
+        active_id = data.get("active_strategy_id")
+        if not active_id or active_id == s_id or len(strats) == 1:
+            try:
+                self.sync_strategy_universe(s_id)
+                from app.engine.recommendation_engine import recommendation_engine
+                recommendation_engine._cached_universe_tickers = None
+                recommendation_engine._universe_last_cached_ts = 0.0
+                logger.info(f"Instant dynamic sync executed for strategy '{strat.get('name')}' (universe cache invalidated).")
+            except Exception as e_sync:
+                logger.warning(f"Error auto-syncing universe on save_strategy: {e_sync}")
+
         return strat
 
     def delete_strategy(self, strategy_id: str) -> bool:
