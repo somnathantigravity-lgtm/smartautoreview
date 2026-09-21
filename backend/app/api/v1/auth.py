@@ -268,6 +268,10 @@ def normal_configure_dhan(payload: NormalDhanConfigModel, authorization: Optiona
 def normal_get_portfolio(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing authorization token.")
+    token = authorization.replace("Bearer ", "").strip()
+    user = user_auth_service.get_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Session expired or invalid.")
     return user_auth_service.get_user_portfolio(user["email"])
 
 class SupabaseConfigRequest(BaseModel):
