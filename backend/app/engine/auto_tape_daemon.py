@@ -85,6 +85,13 @@ class AutoTapeDaemon:
             logger.info("AutoTapeDaemon startup check: All past trading dates up to date.")
             self._last_trigger_status = "UP_TO_DATE"
 
+        # Check if started mid-session on a market day (after 09:17 AM) and catch up today's opening candles
+        try:
+            from app.engine.intraday_today_catchup import today_catchup_service
+            today_catchup_service.ensure_startup_catchup()
+        except Exception as e_today:
+            logger.error(f"Error checking today's mid-session candle catchup: {e_today}")
+
     def _trigger_ingestion(self):
         from app.engine.daily_tape_ingest_service import daily_tape_service
         try:

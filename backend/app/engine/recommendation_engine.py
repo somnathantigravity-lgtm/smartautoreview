@@ -3844,6 +3844,13 @@ class RecommendationEngine:
         except Exception as e:
             logger.error(f"Startup Solvency Gate sync error: {e}")
 
+        # PRIORITY 2: If starting/waking mid-session (after 09:17 AM), catch up today's opening 1-min candles
+        try:
+            from app.engine.intraday_today_catchup import today_catchup_service
+            today_catchup_service.ensure_startup_catchup()
+        except Exception as e_c:
+            logger.error(f"Startup today candle catchup error: {e_c}")
+
         def _scheduler_loop():
             logger.info("Intraday Engine Scheduler started.")
             while self.is_scheduler_running:
