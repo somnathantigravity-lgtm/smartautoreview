@@ -242,7 +242,12 @@ class UserAuthService:
                 "id": user_id,
                 "email": email,
                 "role": "normal_user",
-                "dhan_configured": bool(existing_dhan.get("configured"))
+                "dhan_configured": bool(existing_dhan.get("configured")),
+                "dhan": {
+                    "configured": bool(existing_dhan.get("configured")),
+                    "client_id": existing_dhan.get("client_id", ""),
+                    "last_renewed": existing_dhan.get("last_renewed", "")
+                }
             },
             "message": "Account registered and password saved successfully!"
         }
@@ -267,7 +272,12 @@ class UserAuthService:
                 "id": user["id"],
                 "email": email,
                 "role": "normal_user",
-                "dhan_configured": bool(dhan_info.get("configured"))
+                "dhan_configured": bool(dhan_info.get("configured")),
+                "dhan": {
+                    "configured": bool(dhan_info.get("configured")),
+                    "client_id": dhan_info.get("client_id", ""),
+                    "last_renewed": dhan_info.get("last_renewed", "")
+                }
             },
             "message": "Signed in successfully!"
         }

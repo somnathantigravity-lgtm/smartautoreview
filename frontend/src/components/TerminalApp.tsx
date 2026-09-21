@@ -83,10 +83,11 @@ export function TerminalApp({
       const port = window.location.port;
       const params = new URLSearchParams(window.location.search);
       const portalParam = params.get("portal");
+      const path = window.location.pathname.toLowerCase();
 
-      if (port === "3002" || portalParam === "admin") {
+      if (port === "3002" || portalParam === "admin" || path.startsWith("/admin")) {
         setDetectedPortal("admin");
-      } else if (port === "3000" || portalParam === "special") {
+      } else if (port === "3000" || portalParam === "special" || path.startsWith("/terminal") || path.startsWith("/super")) {
         setDetectedPortal("special");
       } else {
         setDetectedPortal("normal");

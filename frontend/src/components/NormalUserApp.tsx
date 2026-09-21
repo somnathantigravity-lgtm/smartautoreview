@@ -227,10 +227,12 @@ export function NormalUserApp() {
         onAuthSuccess={(newToken, newUser) => {
           setToken(newToken);
           setUser(newUser);
-          if (!newUser?.dhan?.configured) {
-            setActiveTab("settings");
-          } else {
+          localStorage.setItem("apex_normal_token", newToken);
+          localStorage.setItem("apex_normal_user", JSON.stringify(newUser));
+          if (newUser?.dhan?.configured || newUser?.dhan_configured) {
             setActiveTab("recommendations");
+          } else {
+            setActiveTab("settings");
           }
         }}
       />
@@ -240,7 +242,7 @@ export function NormalUserApp() {
   // =========================================================================
   // 2. AUTHENTICATED STATE -> RENDER TERMINAL (STRICTLY 3 TABS)
   // =========================================================================
-  const isDhanConnected = Boolean(user?.dhan?.configured);
+  const isDhanConnected = Boolean(user?.dhan?.configured || user?.dhan_configured);
   const clientAuthUser: AuthUser = {
     email: user.email,
     token: token || "",
