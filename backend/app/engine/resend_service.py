@@ -13,7 +13,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), "resend_config.json")
 class ResendService:
     def __init__(self):
         self.api_key: str = ""
-        self.from_email: str = "onboarding@resend.dev"
+        self.from_email: str = "auth@smartautoreview.com"
         self._load_config()
 
     def _load_config(self):
@@ -22,7 +22,7 @@ class ResendService:
                 with open(CONFIG_FILE, "r") as f:
                     data = json.load(f)
                     self.api_key = str(data.get("api_key", "")).strip()
-                    self.from_email = str(data.get("from_email", "onboarding@resend.dev")).strip()
+                    self.from_email = str(data.get("from_email", "auth@smartautoreview.com")).strip()
             except Exception as e:
                 logger.error(f"Error loading Resend config: {e}")
 
