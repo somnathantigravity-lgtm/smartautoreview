@@ -801,7 +801,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-600 font-medium">Eligible Stocks</span>
                       <span className="font-bold text-slate-900 font-mono text-sm bg-slate-100 px-2 py-0.5 rounded">
-                        1,119 Stocks
+                        {(screeningStatus?.eligible_count || (strat as any).eligible_count || 586).toLocaleString()} Stocks
                       </span>
                     </div>
 
@@ -809,7 +809,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-600 font-medium">Recommendations Today</span>
                       <span className="font-bold text-purple-700 font-mono text-xs bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                        {isStratActive ? (isMarketOpen ? "4 Generated" : "0 Generated") : "0 Generated"}
+                        {screeningStatus?.today_recos_count || 0} Generated
                       </span>
                     </div>
 
@@ -1012,7 +1012,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
             )}
           </div>
           <div className="text-xl font-black text-slate-900 flex items-baseline gap-1.5">
-            <span>{(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 767)).toLocaleString()}</span>
+            <span>{(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 586)).toLocaleString()}</span>
             <span className="text-[10.5px] font-semibold text-slate-500">Monitored</span>
           </div>
         </div>
@@ -1210,7 +1210,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
                 {totalCount.toLocaleString()}
               </span>
               <span className="text-slate-400 text-[11px] font-medium">
-                / {(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 767)).toLocaleString()} stocks
+                / {(screeningStatus?.eligible_count ?? (totalCount > 0 ? totalCount : 586)).toLocaleString()} stocks
               </span>
             </div>
 

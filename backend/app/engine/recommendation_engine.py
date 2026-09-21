@@ -2228,6 +2228,16 @@ class RecommendationEngine:
             except Exception as _sc_err:
                 logger.warning(f"Could not load morning screening state: {_sc_err}")
 
+            if not eligible_set:
+                try:
+                    from app.engine.reco_audit_service import reco_audit_service
+                    st_data = reco_audit_service.get_screening_status()
+                    sym_list = st_data.get("eligible_symbols", [])
+                    if sym_list:
+                        eligible_set = set(s.upper().strip() for s in sym_list)
+                except Exception as _sc_err2:
+                    logger.warning(f"Could not load screening status fallback: {_sc_err2}")
+
             from app.engine.reco_simulation_engine import HISTORY_DB_PATH
             conn = sqlite3.connect(HISTORY_DB_PATH, timeout=20.0)
             conn.row_factory = sqlite3.Row

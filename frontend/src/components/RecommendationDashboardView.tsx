@@ -1534,6 +1534,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   const [strategies, setStrategies] = useState<any[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
   const [recoScreenMode, setRecoScreenMode] = useState<"STRATEGY_HUB" | "RECOMMENDATIONS_TABLE">("STRATEGY_HUB");
+  const [screeningStatus, setScreeningStatus] = useState<any>(null);
 
   useEffect(() => {
     fetch("/api/v1/recommendations/strategies")
@@ -1544,6 +1545,15 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
           const active = data.strategies.find((s: any) => s.is_active);
           if (active) setSelectedStrategyId(active.id);
           else if (data.strategies.length > 0) setSelectedStrategyId(data.strategies[0].id);
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/v1/recommendations/screening-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.eligible_count !== undefined) {
+          setScreeningStatus(data);
         }
       })
       .catch(() => {});
@@ -1974,7 +1984,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 font-medium">Eligible Stocks</span>
                       <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                        {(strat.eligible_count || 767).toLocaleString()} Stocks
+                        {(screeningStatus?.eligible_count || (strat as any).eligible_count || 586).toLocaleString()} Stocks
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -3489,7 +3499,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
 
               <div className="inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Scanning 1,119 Stocks · Synchronizing verified session setups...</span>
+                <span>Scanning {(screeningStatus?.eligible_count || 586).toLocaleString()} Stocks · Synchronizing verified session setups...</span>
               </div>
             </div>
           ) : selectedDate === "TODAY" && allCurrentTrades.length === 0 ? (
@@ -3517,7 +3527,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
 
               <div className="inline-flex items-center gap-2 mt-4 px-3.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Current Status: <strong className="text-slate-900 font-bold">{isMarketLive ? "Screening 1,119 Stocks (Continuous 5s Cycle Active)" : `Next Trading Bell: ${getNextMarketOpenText()}`}</strong></span>
+                <span>Current Status: <strong className="text-slate-900 font-bold">{isMarketLive ? `Screening ${(screeningStatus?.eligible_count || 586).toLocaleString()} Stocks (Continuous 5s Cycle Active)` : `Next Trading Bell: ${getNextMarketOpenText()}`}</strong></span>
               </div>
 
               <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">

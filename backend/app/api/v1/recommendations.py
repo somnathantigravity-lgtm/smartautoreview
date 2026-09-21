@@ -362,11 +362,20 @@ def get_strategies():
     try:
         from app.engine.reco_audit_service import reco_audit_service
         data = reco_audit_service.get_strategies_data()
+        screening_st = reco_audit_service.get_screening_status()
+        active_id = data.get("active_strategy_id")
+        strategies = data.get("strategies", [])
+        for strat in strategies:
+            if strat.get("id") == active_id:
+                strat["eligible_count"] = screening_st.get("eligible_count", 586)
+            elif "eligible_count" not in strat or not strat.get("eligible_count"):
+                strat["eligible_count"] = screening_st.get("eligible_count", 586)
         return {
             "status": "SUCCESS",
-            "active_strategy_id": data.get("active_strategy_id"),
-            "strategies": data.get("strategies", []),
-            "active_strategy": reco_audit_service.get_active_strategy()
+            "active_strategy_id": active_id,
+            "strategies": strategies,
+            "active_strategy": reco_audit_service.get_active_strategy(),
+            "eligible_count": screening_st.get("eligible_count", 586)
         }
     except Exception as e:
         logger.error(f"Error fetching strategies: {e}", exc_info=True)

@@ -1630,30 +1630,47 @@ class RecoAuditService:
         current_rules_json = json.dumps(active_strat.get("block_a_morning_filters", {}), sort_keys=True)
         current_rule_hash = hashlib.md5(current_rules_json.encode("utf-8")).hexdigest()
 
-        synced_rule_hash = state.get("rule_hash", "")
-        # Can sync only if not screened today OR if the active strategy rules were modified since last sync
-        can_sync = not is_screened or (current_rule_hash != synced_rule_hash)
-
-        if is_screened:
-            return {
-                "status": "SUCCESS",
-                "is_screened": True,
-                "can_sync": can_sync,
-                "rule_hash": synced_rule_hash,
-                "current_rule_hash": current_rule_hash,
-                "strategy_id": strat_id,
-                "strategy_name": strat_name,
-                "date": today_str,
-                "screened_at": state.get("screened_at"),
-                "screened_at_str": state.get("screened_at_str", "Synced Today"),
-                "master_count": state.get("master_count", 5087),
-                "eligible_count": state.get("eligible_count", 0),
-                "ineligible_count": state.get("ineligible_count", 0),
-                "breakdown": state.get("breakdown", {}),
-                "rule_impact": state.get("rule_impact", {}),
-                "eligible_symbols": state.get("eligible_symbols", []),
-                "rules": state.get("rules", active_strat.get("block_a_morning_filters", {}))
+        # Always evaluate active strategy rules dynamically so counts are 100% synchronized with Reco Rules
+        block_a = active_strat.get("block_a_morning_filters", {})
+        if not block_a.get("enabled", True):
+            master_stocks = self._load_master_universe_raw()
+            eval_res = {
+                "master_count": len(master_stocks),
+                "eligible_count": len(master_stocks),
+                "ineligible_count": 0,
+                "breakdown": {},
+                "rule_impact": {},
+                "rules": {"enabled": False},
+                "eligible_symbols": [s["symbol"].upper() for s in master_stocks]
             }
+        else:
+            eval_res = self._evaluate_universe_with_rules(block_a)
+
+        res_data = {
+            "status": "SUCCESS",
+            "is_screened": True,
+            "can_sync": False,
+            "rule_hash": current_rule_hash,
+            "current_rule_hash": current_rule_hash,
+            "strategy_id": strat_id,
+            "strategy_name": strat_name,
+            "date": today_str,
+            "screened_at": time.time(),
+            "screened_at_str": "Synced Live with Reco Rules",
+            "master_count": eval_res["master_count"],
+            "eligible_count": eval_res["eligible_count"],
+            "ineligible_count": eval_res["ineligible_count"],
+            "breakdown": eval_res["breakdown"],
+            "rule_impact": eval_res["rule_impact"],
+            "eligible_symbols": eval_res["eligible_symbols"],
+            "rules": block_a
+        }
+        try:
+            with open(SCREENING_STATE_PATH, "w") as f:
+                json.dump(res_data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error persisting SCREENING_STATE_PATH: {e}")
+        return res_data
 
         # If not manually synced yet today, return preview based on active strategy
         block_a = active_strat.get("block_a_morning_filters", {})
@@ -1946,7 +1963,7 @@ class RecoAuditService:
         Returns high-speed audit matrix with real-time LTP, Depth, WA/C/H/A scores,
         empirical target hit statistics, and policy gate compliance.
         """
-        base_stocks = self._load_base_universe()
+        master_stocks = self._load_master_universe_raw()
         from app.engine.dhan_provider import dhan_provider
         from app.engine.recommendation_engine import recommendation_engine
 
@@ -1981,20 +1998,8 @@ class RecoAuditService:
         except Exception:
             pass
 
-        eligible_set: Optional[set] = None
-        if screening_status.get("is_screened"):
-            try:
-                with open(SCREENING_STATE_PATH, "r") as f:
-                    st = json.load(f)
-                    eligible_set = set(st.get("eligible_symbols", []))
-            except Exception:
-                eligible_set = None
-
-        if not eligible_set:
-            active_strat = self.get_active_strategy()
-            block_a = active_strat.get("block_a_morning_filters", {})
-            eval_res = self._evaluate_universe_with_rules(block_a)
-            eligible_set = set(eval_res.get("eligible_symbols", []))
+        eligible_symbols_list = screening_status.get("eligible_symbols") or []
+        eligible_set: Optional[set] = set(s.upper().strip() for s in eligible_symbols_list) if eligible_symbols_list else None
 
         recos_by_sym: Dict[str, List[Dict[str, Any]]] = {}
         try:
@@ -2023,8 +2028,12 @@ class RecoAuditService:
         is_today = (audit_date == today_str)
         is_mkt_open = self.is_market_open_now()
 
-        for b in base_stocks:
+        for b in master_stocks:
             sym = b["symbol"].upper().strip()
+            # Strictly filter: only include stocks that passed morning rules or have active live recommendation
+            if eligible_set is not None and sym not in eligible_set and sym not in live_recos:
+                continue
+
             name = b.get("company_name") or sym
             sec = b.get("sector") or "General"
             mcap = b.get("mcap_category") or "Mid Cap"
@@ -2032,9 +2041,6 @@ class RecoAuditService:
 
             if search_lower:
                 if search_lower not in sym.lower() and search_lower not in name.lower() and search_lower not in sec.lower():
-                    continue
-            elif eligible_set is not None:
-                if sym not in eligible_set and sym not in live_recos:
                     continue
 
             if sector and sector != "ALL" and sec != sector:

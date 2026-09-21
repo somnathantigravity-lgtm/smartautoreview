@@ -9,7 +9,7 @@
       "is_default": false,
       "is_active": true,
       "created_at": 1726690000,
-      "updated_at": 1789757900,
+      "updated_at": 1789930872,
       "target_pct": 2.2,
       "stop_loss_pct": 1.1,
       "block_a_morning_filters": {
@@ -17,11 +17,11 @@
         "exclude_penny": true,
         "min_price": 20,
         "exclude_illiquid": true,
-        "min_volume": 100000,
-        "volume_lookback_days": 20,
+        "min_volume": 50000,
+        "volume_lookback_days": 10,
         "volume_calc_type": "MEDIAN",
         "exclude_low_turnover": true,
-        "min_turnover_cr": 10,
+        "min_turnover_cr": 5,
         "exclude_surveillance_sme": true,
         "exclude_non_equity": true,
         "exclude_circuit_trappers": true,
@@ -32,7 +32,7 @@
         "exclude_weak_piotroski": false,
         "min_piotroski": 4,
         "exclude_high_pledge": true,
-        "max_promoter_pledge": 25,
+        "max_promoter_pledge": 10,
         "exclude_low_promoter_holding": true,
         "min_promoter_holding": 20,
         "exclude_loss_makers": true,
@@ -48,7 +48,7 @@
         },
         "volatility_squeeze": {
           "enabled": true,
-          "max_3d_range_pct": 3.0,
+          "max_3d_range_pct": 3,
           "volume_dryup_threshold": 0.8
         }
       },
@@ -80,7 +80,7 @@
             "require_volume_expansion": true,
             "min_volume_expansion_ratio": 1.5,
             "require_coiling_base": true,
-            "max_base_compression_pct": 3.0,
+            "max_base_compression_pct": 3,
             "circuit_safety_buffer_pct": 1.5,
             "max_bid_ask_spread_pct": 0.15,
             "min_win_rate_floor": 50,
@@ -90,13 +90,13 @@
           "TUE": {
             "enabled": true,
             "max_vwap_distance_pct": 1.4,
-            "max_gap_open_pct": 4.0,
+            "max_gap_open_pct": 4,
             "min_open_cushion_pct": 0.5,
             "min_bar_turnover_lakhs": 2.5,
             "require_volume_expansion": true,
             "min_volume_expansion_ratio": 1.5,
             "require_coiling_base": true,
-            "max_base_compression_pct": 3.0,
+            "max_base_compression_pct": 3,
             "circuit_safety_buffer_pct": 1.5,
             "max_bid_ask_spread_pct": 0.15,
             "min_win_rate_floor": 50,
@@ -112,7 +112,7 @@
             "require_volume_expansion": true,
             "min_volume_expansion_ratio": 1.5,
             "require_coiling_base": true,
-            "max_base_compression_pct": 3.0,
+            "max_base_compression_pct": 3,
             "circuit_safety_buffer_pct": 1.5,
             "max_bid_ask_spread_pct": 0.15,
             "min_win_rate_floor": 50,
@@ -124,28 +124,28 @@
             "max_vwap_distance_pct": 0.9,
             "max_gap_open_pct": 2.5,
             "min_open_cushion_pct": 0.7,
-            "min_bar_turnover_lakhs": 4.0,
+            "min_bar_turnover_lakhs": 4,
             "require_volume_expansion": true,
-            "min_volume_expansion_ratio": 2.0,
+            "min_volume_expansion_ratio": 2,
             "require_coiling_base": true,
             "max_base_compression_pct": 2.5,
-            "circuit_safety_buffer_pct": 2.0,
+            "circuit_safety_buffer_pct": 2,
             "max_bid_ask_spread_pct": 0.12,
             "min_win_rate_floor": 55,
-            "max_retrace_atr_ratio": 1.0,
+            "max_retrace_atr_ratio": 1,
             "nifty_anti_chop_filter": true
           },
           "FRI": {
             "enabled": true,
-            "max_vwap_distance_pct": 1.0,
-            "max_gap_open_pct": 3.0,
+            "max_vwap_distance_pct": 1,
+            "max_gap_open_pct": 3,
             "min_open_cushion_pct": 0.6,
-            "min_bar_turnover_lakhs": 3.0,
+            "min_bar_turnover_lakhs": 3,
             "require_volume_expansion": true,
             "min_volume_expansion_ratio": 1.8,
             "require_coiling_base": true,
             "max_base_compression_pct": 2.5,
-            "circuit_safety_buffer_pct": 2.0,
+            "circuit_safety_buffer_pct": 2,
             "max_bid_ask_spread_pct": 0.12,
             "min_win_rate_floor": 55,
             "max_retrace_atr_ratio": 1.1,
@@ -159,7 +159,7 @@
         "max_bid_ask_spread_pct": 0.15,
         "nifty_anti_chop_filter": true,
         "min_volume_expansion_ratio": 1.5,
-        "max_base_compression_pct": 3.0
+        "max_base_compression_pct": 3
       },
       "block_b_current_params": {
         "enabled": true,
@@ -181,7 +181,7 @@
               {
                 "id": "c_vwap_opt_1",
                 "label": "Sweet Spot",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.8,
                 "score": 3
               },
@@ -196,7 +196,7 @@
                 "id": "c_vwap_opt_3",
                 "label": "Overextended",
                 "min_val": 1.2,
-                "max_val": 3.0,
+                "max_val": 3,
                 "score": -2
               }
             ]
@@ -214,7 +214,7 @@
                 "id": "c_vol_opt_1",
                 "label": "Surge Spike",
                 "min_val": 2.5,
-                "max_val": 10.0,
+                "max_val": 10,
                 "score": 3
               },
               {
@@ -227,7 +227,7 @@
               {
                 "id": "c_vol_opt_3",
                 "label": "Low Volume",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.5,
                 "score": -2
               }
@@ -245,7 +245,7 @@
               {
                 "id": "c_base_opt_1",
                 "label": "Tight Base",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.5,
                 "score": 3
               },
@@ -260,7 +260,7 @@
                 "id": "c_base_opt_3",
                 "label": "Loose Base",
                 "min_val": 2.5,
-                "max_val": 6.0,
+                "max_val": 6,
                 "score": -2
               }
             ]
@@ -306,22 +306,22 @@
               {
                 "id": "c_rsi_opt_1",
                 "label": "Bullish Sweet Spot",
-                "min_val": 55.0,
-                "max_val": 68.0,
+                "min_val": 55,
+                "max_val": 68,
                 "score": 3
               },
               {
                 "id": "c_rsi_opt_2",
                 "label": "Moderate Momentum",
-                "min_val": 48.0,
-                "max_val": 55.0,
+                "min_val": 48,
+                "max_val": 55,
                 "score": 1
               },
               {
                 "id": "c_rsi_opt_3",
                 "label": "Exhausted / Bearish",
-                "min_val": 68.0,
-                "max_val": 100.0,
+                "min_val": 68,
+                "max_val": 100,
                 "score": -2
               }
             ]
@@ -345,15 +345,15 @@
               {
                 "id": "c_orb_opt_2",
                 "label": "Testing Range High",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.3,
                 "score": 1
               },
               {
                 "id": "c_orb_opt_3",
                 "label": "Inside / Below Range",
-                "min_val": -5.0,
-                "max_val": 0.0,
+                "min_val": -5,
+                "max_val": 0,
                 "score": -2
               }
             ]
@@ -371,7 +371,7 @@
                 "id": "c_rvol_opt_1",
                 "label": "Heavy Institutional RVOL",
                 "min_val": 2.5,
-                "max_val": 10.0,
+                "max_val": 10,
                 "score": 3
               },
               {
@@ -384,7 +384,7 @@
               {
                 "id": "c_rvol_opt_3",
                 "label": "Sub-par RVOL",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.5,
                 "score": -2
               }
@@ -432,7 +432,7 @@
                 "id": "c_turn_opt_1",
                 "label": "High Velocity",
                 "min_val": 0.5,
-                "max_val": 5.0,
+                "max_val": 5,
                 "score": 3
               },
               {
@@ -445,7 +445,7 @@
               {
                 "id": "c_turn_opt_3",
                 "label": "Slow Flow",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.2,
                 "score": -1
               }
@@ -463,22 +463,22 @@
               {
                 "id": "c_adx_opt_1",
                 "label": "Strong Trend",
-                "min_val": 25.0,
-                "max_val": 60.0,
+                "min_val": 25,
+                "max_val": 60,
                 "score": 3
               },
               {
                 "id": "c_adx_opt_2",
                 "label": "Developing Trend",
-                "min_val": 18.0,
-                "max_val": 25.0,
+                "min_val": 18,
+                "max_val": 25,
                 "score": 1
               },
               {
                 "id": "c_adx_opt_3",
                 "label": "Choppy Market",
-                "min_val": 0.0,
-                "max_val": 18.0,
+                "min_val": 0,
+                "max_val": 18,
                 "score": -2
               }
             ]
@@ -495,22 +495,22 @@
               {
                 "id": "c_don_opt_1",
                 "label": "New 20-High Break",
-                "min_val": 0.0,
-                "max_val": 1.0,
+                "min_val": 0,
+                "max_val": 1,
                 "score": 3
               },
               {
                 "id": "c_don_opt_2",
                 "label": "Within 1% of High",
-                "min_val": -1.0,
-                "max_val": 0.0,
+                "min_val": -1,
+                "max_val": 0,
                 "score": 1
               },
               {
                 "id": "c_don_opt_3",
                 "label": "Well Below High",
-                "min_val": -10.0,
-                "max_val": -1.0,
+                "min_val": -10,
+                "max_val": -1,
                 "score": -1
               }
             ]
@@ -528,7 +528,7 @@
                 "id": "c_hurst_opt_1",
                 "label": "Persistent Trend",
                 "min_val": 0.6,
-                "max_val": 1.0,
+                "max_val": 1,
                 "score": 3
               },
               {
@@ -541,7 +541,7 @@
               {
                 "id": "c_hurst_opt_3",
                 "label": "Mean Reverting",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.5,
                 "score": -2
               }
@@ -617,22 +617,22 @@
               {
                 "id": "c_stoch_opt_1",
                 "label": "Bullish Cycle Turn",
-                "min_val": 20.0,
-                "max_val": 60.0,
+                "min_val": 20,
+                "max_val": 60,
                 "score": 3
               },
               {
                 "id": "c_stoch_opt_2",
                 "label": "Extended Bullish",
-                "min_val": 60.0,
-                "max_val": 80.0,
+                "min_val": 60,
+                "max_val": 80,
                 "score": 1
               },
               {
                 "id": "c_stoch_opt_3",
                 "label": "Overbought Cycle",
-                "min_val": 80.0,
-                "max_val": 100.0,
+                "min_val": 80,
+                "max_val": 100,
                 "score": -1
               }
             ]
@@ -649,7 +649,7 @@
               {
                 "id": "c_bb_opt_1",
                 "label": "Extreme Squeeze",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.5,
                 "score": 3
               },
@@ -657,14 +657,14 @@
                 "id": "c_bb_opt_2",
                 "label": "Moderate Squeeze",
                 "min_val": 1.5,
-                "max_val": 3.0,
+                "max_val": 3,
                 "score": 1
               },
               {
                 "id": "c_bb_opt_3",
                 "label": "Wide Bands",
-                "min_val": 3.0,
-                "max_val": 10.0,
+                "min_val": 3,
+                "max_val": 10,
                 "score": -1
               }
             ]
@@ -682,21 +682,21 @@
                 "id": "c_atr_opt_1",
                 "label": "Strong Expansion",
                 "min_val": 1.8,
-                "max_val": 5.0,
+                "max_val": 5,
                 "score": 3
               },
               {
                 "id": "c_atr_opt_2",
                 "label": "Normal Expansion",
-                "min_val": 1.0,
+                "min_val": 1,
                 "max_val": 1.8,
                 "score": 1
               },
               {
                 "id": "c_atr_opt_3",
                 "label": "Sub-ATR",
-                "min_val": 0.0,
-                "max_val": 1.0,
+                "min_val": 0,
+                "max_val": 1,
                 "score": -1
               }
             ]
@@ -728,7 +728,7 @@
                 "id": "c_comp_opt_3",
                 "label": "Wide / Dispersed",
                 "min_val": 0.8,
-                "max_val": 2.0,
+                "max_val": 2,
                 "score": -1
               }
             ]
@@ -745,22 +745,22 @@
               {
                 "id": "c_tape_opt_1",
                 "label": "Heavy Bid Dominance",
-                "min_val": 60.0,
-                "max_val": 95.0,
+                "min_val": 60,
+                "max_val": 95,
                 "score": 3
               },
               {
                 "id": "c_tape_opt_2",
                 "label": "Slight Bid Lead",
-                "min_val": 50.0,
-                "max_val": 60.0,
+                "min_val": 50,
+                "max_val": 60,
                 "score": 1
               },
               {
                 "id": "c_tape_opt_3",
                 "label": "Ask Heavy",
-                "min_val": 0.0,
-                "max_val": 50.0,
+                "min_val": 0,
+                "max_val": 50,
                 "score": -2
               }
             ]
@@ -787,22 +787,22 @@
               {
                 "id": "h_win_opt_1",
                 "label": "High Hit Rate",
-                "min_val": 65.0,
-                "max_val": 100.0,
+                "min_val": 65,
+                "max_val": 100,
                 "score": 3
               },
               {
                 "id": "h_win_opt_2",
                 "label": "Moderate Win Rate",
-                "min_val": 55.0,
-                "max_val": 65.0,
+                "min_val": 55,
+                "max_val": 65,
                 "score": 1
               },
               {
                 "id": "h_win_opt_3",
                 "label": "Unreliable Hit Rate",
-                "min_val": 0.0,
-                "max_val": 55.0,
+                "min_val": 0,
+                "max_val": 55,
                 "score": -2
               }
             ]
@@ -819,7 +819,7 @@
               {
                 "id": "h_draw_opt_1",
                 "label": "Shallow Dip",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.8,
                 "score": 3
               },
@@ -834,7 +834,7 @@
                 "id": "h_draw_opt_3",
                 "label": "Deep Shakeout",
                 "min_val": 1.2,
-                "max_val": 3.0,
+                "max_val": 3,
                 "score": -2
               }
             ]
@@ -852,7 +852,7 @@
                 "id": "h_pf_opt_1",
                 "label": "Exceptional Edge",
                 "min_val": 2.2,
-                "max_val": 10.0,
+                "max_val": 10,
                 "score": 3
               },
               {
@@ -865,7 +865,7 @@
               {
                 "id": "h_pf_opt_3",
                 "label": "Sub-par Edge",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.4,
                 "score": -2
               }
@@ -883,22 +883,22 @@
               {
                 "id": "h_morn_opt_1",
                 "label": "Strong Morning Edge",
-                "min_val": 65.0,
-                "max_val": 100.0,
+                "min_val": 65,
+                "max_val": 100,
                 "score": 3
               },
               {
                 "id": "h_morn_opt_2",
                 "label": "Average Morning Edge",
-                "min_val": 50.0,
-                "max_val": 65.0,
+                "min_val": 50,
+                "max_val": 65,
                 "score": 1
               },
               {
                 "id": "h_morn_opt_3",
                 "label": "Morning Trap Stock",
-                "min_val": 0.0,
-                "max_val": 50.0,
+                "min_val": 0,
+                "max_val": 50,
                 "score": -2
               }
             ]
@@ -915,22 +915,22 @@
               {
                 "id": "h_trap_opt_1",
                 "label": "Clean Follow-Through",
-                "min_val": 0.0,
-                "max_val": 15.0,
+                "min_val": 0,
+                "max_val": 15,
                 "score": 3
               },
               {
                 "id": "h_trap_opt_2",
                 "label": "Occasional Traps",
-                "min_val": 15.0,
-                "max_val": 25.0,
+                "min_val": 15,
+                "max_val": 25,
                 "score": 1
               },
               {
                 "id": "h_trap_opt_3",
                 "label": "Chronic Trap Stock",
-                "min_val": 25.0,
-                "max_val": 100.0,
+                "min_val": 25,
+                "max_val": 100,
                 "score": -3
               }
             ]
@@ -947,22 +947,22 @@
               {
                 "id": "h_vc_opt_1",
                 "label": "High Confluence",
-                "min_val": 70.0,
-                "max_val": 100.0,
+                "min_val": 70,
+                "max_val": 100,
                 "score": 3
               },
               {
                 "id": "h_vc_opt_2",
                 "label": "Moderate Confluence",
-                "min_val": 50.0,
-                "max_val": 70.0,
+                "min_val": 50,
+                "max_val": 70,
                 "score": 1
               },
               {
                 "id": "h_vc_opt_3",
                 "label": "Unreliable Volume",
-                "min_val": 0.0,
-                "max_val": 50.0,
+                "min_val": 0,
+                "max_val": 50,
                 "score": -1
               }
             ]
@@ -980,7 +980,7 @@
                 "id": "h_hp_opt_1",
                 "label": "Strongly Persistent",
                 "min_val": 0.65,
-                "max_val": 1.0,
+                "max_val": 1,
                 "score": 3
               },
               {
@@ -993,7 +993,7 @@
               {
                 "id": "h_hp_opt_3",
                 "label": "Mean-Reverting Noise",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 0.55,
                 "score": -2
               }
@@ -1011,22 +1011,22 @@
               {
                 "id": "h_mid_opt_1",
                 "label": "Chop Resilient",
-                "min_val": 60.0,
-                "max_val": 100.0,
+                "min_val": 60,
+                "max_val": 100,
                 "score": 3
               },
               {
                 "id": "h_mid_opt_2",
                 "label": "Average Midday",
-                "min_val": 45.0,
-                "max_val": 60.0,
+                "min_val": 45,
+                "max_val": 60,
                 "score": 1
               },
               {
                 "id": "h_mid_opt_3",
                 "label": "Midday Bleeder",
-                "min_val": 0.0,
-                "max_val": 45.0,
+                "min_val": 0,
+                "max_val": 45,
                 "score": -2
               }
             ]
@@ -1043,22 +1043,22 @@
               {
                 "id": "h_adr_opt_1",
                 "label": "High Range Capture",
-                "min_val": 70.0,
-                "max_val": 100.0,
+                "min_val": 70,
+                "max_val": 100,
                 "score": 3
               },
               {
                 "id": "h_adr_opt_2",
                 "label": "Average Capture",
-                "min_val": 50.0,
-                "max_val": 70.0,
+                "min_val": 50,
+                "max_val": 70,
                 "score": 1
               },
               {
                 "id": "h_adr_opt_3",
                 "label": "Compressed Moves",
-                "min_val": 0.0,
-                "max_val": 50.0,
+                "min_val": 0,
+                "max_val": 50,
                 "score": -1
               }
             ]
@@ -1076,7 +1076,7 @@
                 "id": "h_exp_opt_1",
                 "label": "High Expectancy",
                 "min_val": 1.5,
-                "max_val": 5.0,
+                "max_val": 5,
                 "score": 3
               },
               {
@@ -1089,7 +1089,7 @@
               {
                 "id": "h_exp_opt_3",
                 "label": "Negative Expectancy",
-                "min_val": -2.0,
+                "min_val": -2,
                 "max_val": 0.8,
                 "score": -2
               }
@@ -1107,21 +1107,21 @@
               {
                 "id": "h_gl_opt_1",
                 "label": "High Multiple",
-                "min_val": 2.0,
-                "max_val": 10.0,
+                "min_val": 2,
+                "max_val": 10,
                 "score": 3
               },
               {
                 "id": "h_gl_opt_2",
                 "label": "Acceptable Multiple",
                 "min_val": 1.3,
-                "max_val": 2.0,
+                "max_val": 2,
                 "score": 1
               },
               {
                 "id": "h_gl_opt_3",
                 "label": "Poor Multiple",
-                "min_val": 0.0,
+                "min_val": 0,
                 "max_val": 1.3,
                 "score": -2
               }
@@ -1139,22 +1139,22 @@
               {
                 "id": "h_loss_opt_1",
                 "label": "Short Streak (1-2)",
-                "min_val": 1.0,
-                "max_val": 2.0,
+                "min_val": 1,
+                "max_val": 2,
                 "score": 3
               },
               {
                 "id": "h_loss_opt_2",
                 "label": "Average Streak (3)",
-                "min_val": 3.0,
-                "max_val": 3.0,
+                "min_val": 3,
+                "max_val": 3,
                 "score": 1
               },
               {
                 "id": "h_loss_opt_3",
                 "label": "Long Streak (>4)",
-                "min_val": 4.0,
-                "max_val": 10.0,
+                "min_val": 4,
+                "max_val": 10,
                 "score": -3
               }
             ]
@@ -1189,7 +1189,7 @@
         "entry_start_time": "09:30",
         "entry_cutoff_time": "15:00",
         "auto_square_off_time": "15:15",
-        "max_risk_per_trade_pct": 1.0
+        "max_risk_per_trade_pct": 1
       }
     },
     {
