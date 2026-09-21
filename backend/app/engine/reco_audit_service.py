@@ -2028,11 +2028,14 @@ class RecoAuditService:
         is_today = (audit_date == today_str)
         is_mkt_open = self.is_market_open_now()
 
-        for b in master_stocks:
+        # Pre-filter strictly to eligible universe + live recos for ultra-fast (<150ms) audit calculation
+        target_stocks = [
+            b for b in master_stocks 
+            if (eligible_set is None or b["symbol"].upper().strip() in eligible_set or b["symbol"].upper().strip() in live_recos)
+        ]
+
+        for b in target_stocks:
             sym = b["symbol"].upper().strip()
-            # Strictly filter: only include stocks that passed morning rules or have active live recommendation
-            if eligible_set is not None and sym not in eligible_set and sym not in live_recos:
-                continue
 
             name = b.get("company_name") or sym
             sec = b.get("sector") or "General"
