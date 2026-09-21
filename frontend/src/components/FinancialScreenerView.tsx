@@ -35,7 +35,8 @@ import {
 import {
   fetchScreenerMetrics,
   evaluateScreenerQuery,
-  createCustomPortfolio
+  createCustomPortfolio,
+  getWebSocketUrl
 } from "@/services/api";
 import { ScreenerMetric, ScreenerQueryResponse } from "@/types";
 
@@ -154,9 +155,7 @@ export const FinancialScreenerView: React.FC<FinancialScreenerViewProps> = ({
     const connectWs = () => {
       if (!isMounted) return;
       try {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `${wsProtocol}//${wsHost}:8000/ws/terminal`;
+        const wsUrl = getWebSocketUrl("/ws/terminal");
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

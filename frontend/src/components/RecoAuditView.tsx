@@ -25,6 +25,7 @@ import {
   X
 } from "lucide-react";
 import { RecoAuditReasonModal } from "./RecoAuditReasonModal";
+import { getWebSocketUrl } from "@/services/api";
 
 interface RecoAuditViewProps {
   onNavigateToRules?: () => void;
@@ -655,9 +656,7 @@ export const RecoAuditView: React.FC<RecoAuditViewProps> = ({ onNavigateToRules 
 
     const connectWs = () => {
       try {
-        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.hostname || "localhost";
-        ws = new WebSocket(`${proto}//${host}:8000/ws/terminal`);
+        ws = new WebSocket(getWebSocketUrl("/ws/terminal"));
 
         ws.onmessage = (e) => {
           try {

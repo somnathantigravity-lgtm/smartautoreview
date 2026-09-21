@@ -15,7 +15,7 @@ import {
   Zap
 } from "lucide-react";
 import { PresetStrategy } from "@/constants/presetStrategies";
-import { evaluateScreenerQuery } from "@/services/api";
+import { evaluateScreenerQuery, getWebSocketUrl } from "@/services/api";
 
 interface StrategyScannerModalProps {
   isOpen: boolean;
@@ -110,9 +110,7 @@ export const StrategyScannerModal: React.FC<StrategyScannerModalProps> = ({
     const connectWs = () => {
       if (!isMounted) return;
       try {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `${wsProtocol}//${wsHost}:8000/ws/terminal`;
+        const wsUrl = getWebSocketUrl("/ws/terminal");
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

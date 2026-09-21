@@ -28,7 +28,7 @@ import {
   ExternalLink,
   Activity
 } from "lucide-react";
-import { fetchStockUniverse, evaluateScreenerQuery, fetchSectors } from "@/services/api";
+import { fetchStockUniverse, evaluateScreenerQuery, fetchSectors, getWebSocketUrl } from "@/services/api";
 import { StockQuote } from "@/types";
 import { AdvancedScreenerModal } from "@/components/AdvancedScreenerModal";
 import { ColumnCustomizerModal } from "@/components/ColumnCustomizerModal";
@@ -1236,9 +1236,7 @@ export const UniverseView: React.FC<UniverseViewProps> = ({
     const connectWs = () => {
       if (!isMounted) return;
       try {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `${wsProtocol}//${wsHost}:8000/ws/terminal`;
+        const wsUrl = getWebSocketUrl("/ws/terminal");
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

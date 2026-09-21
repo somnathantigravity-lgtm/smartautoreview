@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { OrderPlacementModal } from "@/components/OrderPlacementModal";
 import TradeOnePagerModal from "@/components/TradeOnePagerModal";
-import { fetchLiveRecommendations } from "@/services/api";
+import { fetchLiveRecommendations, getWebSocketUrl } from "@/services/api";
 import {
   FilterStudioModal,
   DynamicFilterConfig,
@@ -3919,9 +3919,7 @@ export const LegacyRecommendationDashboardView: React.FC<RecommendationDashboard
     const connectWs = () => {
       if (!isMounted) return;
       try {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `${wsProtocol}//${wsHost}:8000/ws/terminal`;
+        const wsUrl = getWebSocketUrl("/ws/terminal");
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

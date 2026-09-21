@@ -49,7 +49,8 @@ import {
   deleteRule,
   fetchTriggeredAlerts,
   clearTriggeredAlerts,
-  syncStockFilings
+  syncStockFilings,
+  getWebSocketUrl
 } from "@/services/api";
 import {
   ChartDataResponse,
@@ -281,9 +282,7 @@ export const ChartRuleStudio: React.FC<ChartRuleStudioProps> = ({
     const connectWs = () => {
       if (!isMounted) return;
       try {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.hostname || "localhost";
-        const wsUrl = `${wsProtocol}//${wsHost}:8000/ws/terminal`;
+        const wsUrl = getWebSocketUrl("/ws/terminal");
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

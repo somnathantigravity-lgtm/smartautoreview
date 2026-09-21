@@ -1,4 +1,16 @@
-const API_BASE = "http://127.0.0.1:8000/api/v1";
+const API_BASE = typeof window !== "undefined"
+  ? "/api/v1"
+  : (process.env.INTERNAL_API_URL || "http://127.0.0.1:8000/api/v1");
+
+export function getWebSocketUrl(path: string = "/ws/terminal"): string {
+  if (typeof window === "undefined") return `ws://127.0.0.1:8000${path}`;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") {
+    return `${protocol}//${host}:8000${path}`;
+  }
+  return `${protocol}//${window.location.host}${path}`;
+}
 
 // --- BSE & NSE Universe ---
 export async function fetchStockUniverse(params?: {
