@@ -1674,11 +1674,18 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
   // Base qualified trades meeting minimum score threshold — supports 3-Pillars vs WA-Only mode
   const baseScoreQualifiedTrades = useMemo(() => {
     return allCurrentTrades.filter((t) => {
-      // Hard Gate: Candidate MUST match 100% of active Knockout Guardrails (Pillar I)
-      // and 100% of active Priority / Execution Gate (Pillar P).
-      // If either does not match 100%, NEVER show to the user in recommendations!
-      if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
-      if ((t as any).is_execution_gate_passed === false || (t as any).is_priority_vetoed === true) return false;
+      // Persistent Recommendation Lock: Once a trade is shown/emitted in recommendations, NEVER erase it!
+      // Keep tracking it throughout the session until Target Hit, Stop Loss, or Day-End Square-Off.
+      const isAlreadyRecommended = Boolean(
+        (t as any).id?.startsWith("live_") ||
+        (t as any).id?.startsWith("ch_") ||
+        ["TARGET_HIT", "STOP_LOSS", "SQUARED_OFF", "OPEN"].includes((t.status || "").toUpperCase())
+      );
+
+      if (!isAlreadyRecommended) {
+        if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
+        if ((t as any).is_execution_gate_passed === false || (t as any).is_priority_vetoed === true) return false;
+      }
 
       const curScore = t.score_100 || 0;
       const histScore = t.history_score ?? t.vault_score ?? 0;
@@ -1696,42 +1703,39 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
         : (isQuotaErr ? 70 : (t.ai_vision_score ?? 70));
       const waScore = t.weighted_average ?? Math.round(((curScore * 0.45) + (histScore * 0.35)) / 0.80);
 
-      // Contextual Score Gate based on active stageFilter:
-      // Tab A: CURRENT_PASSED -> Only check Current Score (curScore >= minCurrentScore)
-      // Tab B: HISTORY_PASSED -> Check Current & History (curScore >= minCurrentScore && histScore >= minHistoryScore)
-      // Tab C: PRIORITY_PASSED -> Check Priority passed + Current & History (curScore >= minCurrentScore && histScore >= minHistoryScore)
-      // Tab D: AI_PASSED -> Check AI passed + full 3 Pillars (or WA)
-      // Tab E: ALL -> Check full 3 Pillars (or WA)
-      if (stageFilter === "KNOCKOUT_PASSED") {
-        if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
-      } else if (stageFilter === "CURRENT_PASSED") {
-        if (curScore < minCurrentScore) return false;
-      } else if (stageFilter === "HISTORY_PASSED") {
-        if (curScore < minCurrentScore) return false;
-        if (histScore < minHistoryScore) return false;
-      } else if (stageFilter === "PRIORITY_PASSED") {
-        if (curScore < minCurrentScore) return false;
-        if (histScore < minHistoryScore) return false;
-        if (!(t as any).is_priority_passed) return false;
-      } else if (stageFilter === "AI_PASSED") {
-        if (curScore < minCurrentScore) return false;
-        if (histScore < minHistoryScore) return false;
-        if (!(t as any).is_priority_passed) return false;
-        const isAi = (t as any).is_ai_passed || t.mode_vision || (t as any).vision_status === "COMPLETED";
-        if (!isAi) return false;
-        if (filterMode === "WA_ONLY") {
-          if (waScore < minWaScore) return false;
-        } else {
-          if (visScore < minVisionScore) return false;
-        }
-      } else {
-        // Tab ALL
-        if (filterMode === "WA_ONLY") {
-          if (waScore < minWaScore) return false;
-        } else {
+      // Score filter only applies to new candidates; already emitted recommendations stay permanently locked
+      if (!isAlreadyRecommended) {
+        if (stageFilter === "KNOCKOUT_PASSED") {
+          if ((t as any).is_guardrails_passed === false || (t as any).is_knockout_vetoed === true) return false;
+        } else if (stageFilter === "CURRENT_PASSED") {
+          if (curScore < minCurrentScore) return false;
+        } else if (stageFilter === "HISTORY_PASSED") {
           if (curScore < minCurrentScore) return false;
           if (histScore < minHistoryScore) return false;
-          if (visScore < minVisionScore) return false;
+        } else if (stageFilter === "PRIORITY_PASSED") {
+          if (curScore < minCurrentScore) return false;
+          if (histScore < minHistoryScore) return false;
+          if (!(t as any).is_priority_passed) return false;
+        } else if (stageFilter === "AI_PASSED") {
+          if (curScore < minCurrentScore) return false;
+          if (histScore < minHistoryScore) return false;
+          if (!(t as any).is_priority_passed) return false;
+          const isAi = (t as any).is_ai_passed || t.mode_vision || (t as any).vision_status === "COMPLETED";
+          if (!isAi) return false;
+          if (filterMode === "WA_ONLY") {
+            if (waScore < minWaScore) return false;
+          } else {
+            if (visScore < minVisionScore) return false;
+          }
+        } else {
+          // Tab ALL
+          if (filterMode === "WA_ONLY") {
+            if (waScore < minWaScore) return false;
+          } else {
+            if (curScore < minCurrentScore) return false;
+            if (histScore < minHistoryScore) return false;
+            if (visScore < minVisionScore) return false;
+          }
         }
       }
 

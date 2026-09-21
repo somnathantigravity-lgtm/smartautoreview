@@ -429,7 +429,8 @@ class RecommendationEngine:
             "POWERGRID": {"data": {"sym": "POWERGRID", "adr_pct": 1.67, "target_hit_rate": 30.4, "green_follow_through": 20.0, "memory_score": 37, "qualifies_intraday_run": False, "status": "WARMED"}, "cached_at": time.time()},
         }
         self._init_historical_memory_from_dna()
-        self._live_recos: Dict[str, Dict[str, Any]] = {}
+        self._live_recos_file = os.path.join(os.path.dirname(__file__), "live_daily_recommendations.json")
+        self._live_recos: Dict[str, Dict[str, Any]] = self._load_live_recos_from_disk()
         self._live_recos_lock = threading.Lock()
         self._live_scan_in_progress = False
         self._last_live_scan_ts = 0.0
@@ -457,9 +458,11 @@ class RecommendationEngine:
         """Loads all symbols already recommended today from recommendations.db to enforce 1-reco-per-day rule."""
         try:
             today_str = datetime.now(IST).strftime("%Y-%m-%d")
+            today_start = datetime.strptime(today_str, "%Y-%m-%d").replace(tzinfo=IST).timestamp()
+            today_end = today_start + 86400.0
             conn = get_db_connection()
             c = conn.cursor()
-            c.execute("SELECT DISTINCT symbol FROM recommendations WHERE DATE(datetime(created_at, 'unixepoch', 'localtime')) = ?", (today_str,))
+            c.execute("SELECT DISTINCT symbol FROM recommendations WHERE created_at >= ? AND created_at < ?", (today_start, today_end))
             syms = {r[0].upper() for r in c.fetchall() if r[0]}
             conn.close()
             return syms
@@ -485,6 +488,26 @@ class RecommendationEngine:
                 json.dump({"date": today_str, "outcomes": self._frozen_outcomes}, f)
         except Exception:
             pass
+
+    def _load_live_recos_from_disk(self) -> Dict[str, Dict[str, Any]]:
+        try:
+            today_str = datetime.now(IST).strftime("%Y-%m-%d")
+            if hasattr(self, "_live_recos_file") and os.path.exists(self._live_recos_file):
+                with open(self._live_recos_file, "r") as f:
+                    data = json.load(f)
+                if data.get("date") == today_str and isinstance(data.get("recommendations"), dict):
+                    return data["recommendations"]
+        except Exception as e:
+            logger.warning(f"Failed to load daily recommendations from disk: {e}")
+        return {}
+
+    def _save_live_recos_to_disk(self):
+        try:
+            today_str = datetime.now(IST).strftime("%Y-%m-%d")
+            with open(self._live_recos_file, "w") as f:
+                json.dump({"date": today_str, "recommendations": self._live_recos}, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save daily recommendations to disk: {e}")
 
     def _init_historical_memory_from_dna(self):
         """Pre-warms in-memory cache with all 2900+ stocks from quant_copilot.db (stock_26_parameters_dna)."""
@@ -1473,11 +1496,11 @@ class RecommendationEngine:
     def _get_ch_passed_candidates(self) -> List[Dict[str, Any]]:
         """Returns cached CH Passed setups from Reco Audit Studio (updated every 15 seconds)."""
         now_ts = time.time()
-        if hasattr(self, "_ch_candidates_cache") and self._ch_candidates_cache and (now_ts - getattr(self, "_ch_candidates_cache_ts", 0.0) < 15.0):
+        if hasattr(self, "_ch_candidates_cache") and self._ch_candidates_cache is not None and (now_ts - getattr(self, "_ch_candidates_cache_ts", 0.0) < 15.0):
             return list(self._ch_candidates_cache)
 
         with getattr(self, "_ch_candidates_lock", threading.Lock()):
-            if hasattr(self, "_ch_candidates_cache") and self._ch_candidates_cache and (now_ts - getattr(self, "_ch_candidates_cache_ts", 0.0) < 15.0):
+            if hasattr(self, "_ch_candidates_cache") and self._ch_candidates_cache is not None and (now_ts - getattr(self, "_ch_candidates_cache_ts", 0.0) < 15.0):
                 return list(self._ch_candidates_cache)
 
             candidates = []
@@ -1616,28 +1639,11 @@ class RecommendationEngine:
         - FULL_STEP: Holy grail setups passing all 3 filters simultaneously
         """
         today_str = datetime.now(IST).strftime("%Y-%m-%d")
-        # Only include dates where the system ACTUALLY recommended trades during real live market hours
-        available_market_dates = []
-        try:
-            from app.engine.recommendations_db import get_db_connection
-            conn_reco = get_db_connection()
-            c_reco = conn_reco.cursor()
-            c_reco.execute("""
-                SELECT DISTINCT date(created_at, 'unixepoch', 'localtime') as dt 
-                FROM recommendations 
-                WHERE is_published = 1 
-                  AND is_admin_manual = 0
-                  AND strftime('%w', datetime(created_at, 'unixepoch', 'localtime')) NOT IN ('0', '6')
-                  AND time(created_at, 'unixepoch', 'localtime') BETWEEN '09:15:00' AND '15:30:00'
-                  AND batch_id NOT LIKE 'batch_2026091%'
-                ORDER BY dt DESC LIMIT 10
-            """)
-            available_market_dates = [r[0] for r in c_reco.fetchall() if r[0] and r[0] != today_str]
-            conn_reco.close()
-        except Exception:
-            available_market_dates = []
-
+        # Available historical market dates from tested session registry
         from app.engine.reco_audit_service import reco_audit_service
+        all_tested = reco_audit_service.get_audit_available_dates()
+        available_market_dates = [d for d in all_tested if d and d != today_str][:10]
+
         is_mkt_open = reco_audit_service.is_market_open_now()
 
         now_ist = datetime.now(IST)
@@ -1762,6 +1768,8 @@ class RecommendationEngine:
                 "message": "Please configure and activate today's universe in Reco Audit Studio before live recommendations can begin."
             }
 
+        _t0 = time.time()
+        _perf_traces = {}
         now_ts = time.time()
         # Dispatch scanner asynchronously in background thread so HTTP response returns in <20ms without blocking UI
         if force_scan or not self._live_recos or (now_ts - self._last_live_scan_ts > 60.0):
@@ -1778,6 +1786,7 @@ class RecommendationEngine:
                 self._live_recos.pop(s, None)
 
             all_items = list(self._live_recos.values())
+        _perf_traces["step1_copy_live"] = round((time.time() - _t0)*1000, 1)
 
         # Tag live published recos with progressive funnel status
         act_strat_obj = reco_audit_service.get_active_strategy()
@@ -1815,6 +1824,7 @@ class RecommendationEngine:
                     existing_syms.add(c_sym)
         except Exception as _m_err:
             logger.warning(f"Error merging CH candidates: {_m_err}")
+        _perf_traces["step2_ch_candidates"] = round((time.time() - _t0)*1000, 1)
 
         mode_upper = (mode or "CURRENT").upper()
         if mode_upper == "VALIDATED":
@@ -1831,6 +1841,7 @@ class RecommendationEngine:
         filtered.sort(key=lambda x: (x.get("is_ai_passed", False), x.get("is_priority_passed", False), x.get("score_100", 0)), reverse=True)
 
         total_universe = len(self._get_approved_universe_tickers())
+        _perf_traces["step3_universe_check"] = round((time.time() - _t0)*1000, 1)
         
         try:
             dhan_status = dhan_provider.get_connection_status()
@@ -1876,21 +1887,7 @@ class RecommendationEngine:
                 item["dates_5d"] = d5_info.get("dates_5d", [])
 
                 # Real-time Volume & Market Depth (Buy/Sell Quantity) from Dhan WebSocket cache
-                vol = int(sinfo.get("volume") or 0)
-                if vol <= 0:
-                    try:
-                        from app.engine.reco_simulation_engine import HISTORY_DB_PATH
-                        _v_conn = sqlite3.connect(HISTORY_DB_PATH, timeout=2.0)
-                        _v_cur = _v_conn.cursor()
-                        _v_cur.execute("SELECT SUM(volume) FROM historical_1min_candles WHERE symbol = ? AND substr(datetime_str, 1, 10) = ?", (sym, today_str))
-                        _v_row = _v_cur.fetchone()
-                        _v_conn.close()
-                        if _v_row and _v_row[0]:
-                            vol = int(_v_row[0])
-                    except Exception:
-                        pass
-                if vol <= 0:
-                    vol = int(item.get("volume") or 148500)
+                vol = int(sinfo.get("volume") or item.get("volume") or 148500)
                 item["volume"] = vol
 
                 # Extract live buy/sell quantities from orderbook or Dhan feed
@@ -1943,33 +1940,21 @@ class RecommendationEngine:
 
                 # 3. Not yet terminal: check live LTP and post-trigger intraday candle extremes
                 live_ltp = float(sinfo.get("ltp") or sinfo.get("nse_ltp") or sinfo.get("bse_ltp") or 0.0) if sinfo else 0.0
-                post_high = live_ltp
-                post_low = live_ltp
-                trigger_time_str = item.get("trigger_time", "")
-                trigger_time_clean = (trigger_time_str or "").strip()
-                if len(trigger_time_clean) == 5:
-                    trigger_time_clean += ":00"
+                prev_post_high = float(item.get("post_high") or 0.0)
+                prev_post_low = float(item.get("post_low") or 0.0)
+                post_high = max(prev_post_high, live_ltp) if live_ltp > 0 else prev_post_high
+                post_low = min(prev_post_low, live_ltp) if (prev_post_low > 0 and live_ltp > 0) else (live_ltp or prev_post_low)
 
-                # Strictly evaluate only candles generated AT or AFTER the trade's trigger time
-                if trigger_time_clean:
-                    try:
-                        from app.engine.reco_simulation_engine import HISTORY_DB_PATH
-                        _c_conn = sqlite3.connect(HISTORY_DB_PATH, timeout=5.0)
-                        _c_cur = _c_conn.cursor()
-                        _c_cur.execute(
-                            "SELECT MAX(high), MIN(low) FROM historical_1min_candles WHERE symbol = ? AND datetime_str >= ?",
-                            (sym, f"{today_str} {trigger_time_clean}")
-                        )
-                        _c_row = _c_cur.fetchone()
-                        _c_conn.close()
-                        if _c_row and _c_row[0] is not None:
-                            post_high = max(post_high, float(_c_row[0]))
-                        if _c_row and _c_row[1] is not None:
-                            post_low = min(post_low, float(_c_row[1])) if post_low > 0 else float(_c_row[1])
-                    except Exception:
-                        pass
+                # Keep live extremes updated on item and in _live_recos
+                item["post_high"] = post_high
+                item["post_low"] = post_low
+                with self._live_recos_lock:
+                    if sym in self._live_recos:
+                        self._live_recos[sym]["post_high"] = post_high
+                        self._live_recos[sym]["post_low"] = post_low
 
                 # Calculate elapsed time from trigger
+                trigger_time_str = item.get("trigger_time", "")
                 elapsed_mins = 15
                 if trigger_time_str:
                     try:
@@ -2061,6 +2046,8 @@ class RecommendationEngine:
                             self._live_recos[sym]["live_pnl_pct"] = item["live_pnl_pct"]
                             self._live_recos[sym]["exit_price"] = item["exit_price"]
                             self._live_recos[sym]["exit_time"] = None
+            self._save_live_recos_to_disk()
+            _perf_traces["step4_ltp_outcomes"] = round((time.time() - _t0)*1000, 1)
             # Evaluate Module 5 Priority Rules & today's high/low for each recommendation
             try:
                 from app.engine.reco_audit_service import reco_audit_service
@@ -2133,6 +2120,7 @@ class RecommendationEngine:
                 continue
             strictly_qualified.append(item)
         filtered = strictly_qualified
+        _perf_traces["step5_filter_complete"] = round((time.time() - _t0)*1000, 1)
 
         return {
             "status": "SUCCESS",
@@ -2150,7 +2138,8 @@ class RecommendationEngine:
             "broker_source": broker_source,
             "recommendations": filtered,
             "session_date": today_str,
-            "available_dates": available_market_dates
+            "available_dates": available_market_dates,
+            "_perf_traces": _perf_traces
         }
 
     def clear_live_recommendations(self, start_fresh_from_now: bool = True):
@@ -2180,7 +2169,9 @@ class RecommendationEngine:
             from app.engine.recommendations_db import get_db_connection
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("DELETE FROM recommendations WHERE date(datetime(created_at, 'unixepoch', 'localtime')) = ?", (today_str,))
+            today_start = datetime.strptime(today_str, "%Y-%m-%d").replace(tzinfo=IST).timestamp()
+            today_end = today_start + 86400.0
+            cur.execute("DELETE FROM recommendations WHERE created_at >= ? AND created_at < ?", (today_start, today_end))
             conn.commit()
             conn.close()
             logger.info("Purged today's stale recommendations from recommendations.db for clean restart.")
@@ -2571,6 +2562,7 @@ class RecommendationEngine:
                             }
                             self._live_recos[g_sym] = live_obj
                             self._daily_recommended_symbols.add(g_sym)
+                            self._save_live_recos_to_disk()
                             try:
                                 self.broadcast_event({
                                     "type": "RECOMMENDATION_NEW",

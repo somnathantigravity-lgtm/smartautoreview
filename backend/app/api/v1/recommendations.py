@@ -47,11 +47,16 @@ def get_live_simulation_recommendations(
     Provides progressive hydration across Current, Validated History, AI Vision (Gemini 3.6 Flash), and Full 3-Step.
     """
     try:
-        return recommendation_engine.get_live_simulation_style_recommendations(
+        import time as _t
+        _t0 = _t.time()
+        res = recommendation_engine.get_live_simulation_style_recommendations(
             mode=mode,
             force_scan=force_scan,
             session_date=session_date
         )
+        _dt = (_t.time() - _t0) * 1000
+        res["_api_elapsed_ms"] = round(_dt, 1)
+        return res
     except Exception as e:
         logger.error(f"Error fetching live recommendations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

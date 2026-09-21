@@ -1455,12 +1455,18 @@ class RecoAuditService:
     # STRATEGY & MODULAR ENGINE MANAGEMENT
     # ---------------------------------------------------------
     def get_strategies_data(self) -> Dict[str, Any]:
-        """Loads all custom & default strategies from strategies.json."""
+        """Loads all custom & default strategies from strategies.json with fast in-memory caching."""
+        now_ts = time.time()
+        if hasattr(self, "_strategies_cache") and self._strategies_cache and (now_ts - getattr(self, "_strategies_cache_ts", 0.0) < 5.0):
+            return self._strategies_cache
+
         if os.path.exists(STRATEGIES_PATH):
             try:
                 with open(STRATEGIES_PATH, "r") as f:
                     data = json.load(f)
                     if isinstance(data, dict) and "strategies" in data:
+                        self._strategies_cache = data
+                        self._strategies_cache_ts = now_ts
                         return data
             except Exception as e:
                 logger.error(f"Error loading strategies.json: {e}")
@@ -1471,6 +1477,7 @@ class RecoAuditService:
 
     def save_strategies_data(self, data: Dict[str, Any]) -> bool:
         """Persists strategies configuration locally and in Supabase."""
+        self._strategies_cache = None
         try:
             with open(STRATEGIES_PATH, "w") as f:
                 json.dump(data, f, indent=2)
@@ -2025,7 +2032,17 @@ class RecoAuditService:
 
         recos_by_sym: Dict[str, List[Dict[str, Any]]] = {}
         try:
-            conn = sqlite3.connect(f"file:{RECO_DB_PATH}?mode=ro", uri=True, timeout=15.0)
+            d_parts = [int(x) for x in audit_date.split("-")]
+            start_dt = datetime(d_parts[0], d_parts[1], d_parts[2], 0, 0, 0, tzinfo=IST)
+            end_dt = datetime(d_parts[0], d_parts[1], d_parts[2], 23, 59, 59, tzinfo=IST)
+            start_ts = start_dt.timestamp()
+            end_ts = end_dt.timestamp()
+        except Exception:
+            start_ts = time.time() - 86400
+            end_ts = time.time() + 86400
+
+        try:
+            conn = sqlite3.connect(f"file:{RECO_DB_PATH}?mode=ro", uri=True, timeout=2.0)
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             c.execute("""
@@ -2033,9 +2050,9 @@ class RecoAuditService:
                     id, symbol, status, return_pct, entry_min, target_price, stop_loss,
                     datetime(created_at, 'unixepoch', 'localtime') as dt_str
                 FROM recommendations
-                WHERE DATE(datetime(created_at, 'unixepoch', 'localtime')) = ?
+                WHERE created_at >= ? AND created_at <= ?
                   AND status != 'SHADOW_TRACKING'
-            """, (audit_date,))
+            """, (start_ts, end_ts))
             for row in c.fetchall():
                 s_u = row["symbol"].upper().strip()
                 if s_u not in recos_by_sym:
@@ -2057,6 +2074,11 @@ class RecoAuditService:
         ]
 
         active_strat = self.get_active_strategy()
+        gate_cfg = active_strat.get("block_f_execution_gate", {})
+        hod_tol_ratio = float(gate_cfg.get("hod_tolerance_ratio", 0.995) or 0.995)
+        gate_min_rvol = float(gate_cfg.get("min_rvol", 1.2) or 1.2)
+        gate_req_vwap = bool(gate_cfg.get("require_above_vwap", True))
+        gate_max_vwap_pct = float(gate_cfg.get("max_vwap_distance_pct", 1.5) or 1.5)
         now_ist = datetime.now(IST)
 
         for b in target_stocks:
@@ -2175,13 +2197,6 @@ class RecoAuditService:
                 daily_outcome_label = "⚡ Live Reco" if has_valid_live_reco else ("⚡ MICHPA Active" if policy_passed else "0 Triggers Today")
 
             # Block F Execution Gate (Go / No-Go Breakout Timing)
-            active_strat = self.get_active_strategy()
-            gate_cfg = active_strat.get("block_f_execution_gate", {})
-            hod_tol_ratio = float(gate_cfg.get("hod_tolerance_ratio", 0.995) or 0.995)
-            gate_min_rvol = float(gate_cfg.get("min_rvol", 1.2) or 1.2)
-            gate_req_vwap = bool(gate_cfg.get("require_above_vwap", True))
-            gate_max_vwap_pct = float(gate_cfg.get("max_vwap_distance_pct", 1.5) or 1.5)
-
             day_hi = float(stk_meta.get("day_high") or stk_meta.get("high") or (ltp * 1.008 if ltp > 0 else 0.0))
             day_lo = float(stk_meta.get("day_low") or stk_meta.get("low") or (ltp * 0.992 if ltp > 0 else 0.0))
             if day_hi <= 0 and ltp > 0: day_hi = round(ltp * 1.006, 2)
