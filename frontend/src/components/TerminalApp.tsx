@@ -52,16 +52,27 @@ export function TerminalApp({
 }: TerminalAppProps) {
   const isTerminalRoute = forceSpecial || ["reco_audit", "reco_rules", "vault", "simulation", "universe", "watchlist", "trends", "news", "chart", "settings"].includes(defaultTab);
   const [detectedPortal, setDetectedPortal] = useState<"special" | "normal" | "admin">(() => {
-    if (isTerminalRoute) return "special";
+    if (forceSpecial) return "special";
     if (typeof window !== "undefined") {
       const port = window.location.port;
       const params = new URLSearchParams(window.location.search);
       const portalParam = params.get("portal");
       const path = window.location.pathname.toLowerCase();
-      if (port === "3002" || portalParam === "admin" || path.startsWith("/admin")) return "admin";
-      if (port === "3000" || portalParam === "special" || path.startsWith("/terminal") || path.startsWith("/super")) return "special";
-      // Default website (port 3001, or default domain smartautoreviews.com)
-      return "normal";
+      const savedPortal = localStorage.getItem("apex_active_portal") as "special" | "normal" | "admin" | null;
+
+      if (port === "3002" || portalParam === "admin" || path.startsWith("/admin")) {
+        localStorage.setItem("apex_active_portal", "admin");
+        return "admin";
+      }
+      if (port === "3000" || portalParam === "special" || path.startsWith("/terminal") || path.startsWith("/super")) {
+        localStorage.setItem("apex_active_portal", "special");
+        return "special";
+      }
+      // On page refresh on any subpath, retain active portal state so user never gets kicked back to default portal
+      if (savedPortal && ["special", "admin", "normal"].includes(savedPortal)) {
+        return savedPortal;
+      }
+      return isTerminalRoute ? "special" : "normal";
     }
     return "normal";
   });
@@ -79,6 +90,54 @@ export function TerminalApp({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isMarketOpen, setIsMarketOpen] = useState<boolean>(false);
 
+  // 60-Minute Inactivity Auto-Logout & Multi-Tab Sync
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ACTIVITY_KEY = "apex_last_activity_ts";
+    const MAX_INACTIVITY_MS = 60 * 60 * 1000; // 60 minutes
+
+    const markActivity = () => {
+      try {
+        localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+      } catch {}
+    };
+
+    markActivity();
+    const events = ["mousedown", "keydown", "scroll", "touchstart"];
+    events.forEach((ev) => window.addEventListener(ev, markActivity, { passive: true }));
+
+    // Storage event: sync auth across all tabs instantly
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "apex_normal_token" || e.key === "apex_user" || e.key === "apex_active_portal") {
+        checkAuth();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Check inactivity every 30 seconds
+    const interval = setInterval(() => {
+      try {
+        const lastStr = localStorage.getItem(ACTIVITY_KEY);
+        if (lastStr) {
+          const elapsed = Date.now() - parseInt(lastStr, 10);
+          if (elapsed > MAX_INACTIVITY_MS) {
+            localStorage.removeItem("apex_normal_token");
+            localStorage.removeItem("apex_normal_user");
+            localStorage.removeItem("apex_user");
+            localStorage.removeItem(ACTIVITY_KEY);
+            window.location.reload();
+          }
+        }
+      } catch {}
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach((ev) => window.removeEventListener(ev, markActivity));
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined" && !forceSpecial) {
       const port = window.location.port;
@@ -87,11 +146,11 @@ export function TerminalApp({
       const path = window.location.pathname.toLowerCase();
 
       if (port === "3002" || portalParam === "admin" || path.startsWith("/admin")) {
+        localStorage.setItem("apex_active_portal", "admin");
         setDetectedPortal("admin");
       } else if (port === "3000" || portalParam === "special" || path.startsWith("/terminal") || path.startsWith("/super")) {
+        localStorage.setItem("apex_active_portal", "special");
         setDetectedPortal("special");
-      } else {
-        setDetectedPortal("normal");
       }
     }
   }, [forceSpecial]);

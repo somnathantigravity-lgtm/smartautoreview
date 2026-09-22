@@ -656,12 +656,6 @@ export async function refreshLiveNews() {
 }
 
 // --- Dhan Broker Trade Execution & Portfolio API ---
-export async function fetchTradeStatus() {
-  const res = await fetch(`${API_BASE}/trade/status`);
-  if (!res.ok) throw new Error("Failed to fetch Dhan trade status");
-  return res.json();
-}
-
 export async function updateTradeSettings(data: {
   client_id?: string;
   access_token?: string;
@@ -669,7 +663,10 @@ export async function updateTradeSettings(data: {
 }) {
   const res = await fetch(`${API_BASE}/trade/settings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getTradeAuthHeaders()
+    },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update Dhan trade settings");
@@ -691,6 +688,27 @@ export async function syncDhanIP() {
   return res.json();
 }
 
+function getTradeAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const normalToken = localStorage.getItem("apex_normal_token");
+  if (normalToken) {
+    return { "Authorization": `Bearer ${normalToken}` };
+  }
+  const adminToken = localStorage.getItem("admin_token") || localStorage.getItem("apex_user_token");
+  if (adminToken) {
+    return { "Authorization": `Bearer ${adminToken}` };
+  }
+  return {};
+}
+
+export async function fetchTradeStatus() {
+  const res = await fetch(`${API_BASE}/trade/status`, {
+    headers: getTradeAuthHeaders()
+  });
+  if (!res.ok) throw new Error("Failed to fetch trade status");
+  return res.json();
+}
+
 export async function placeTradeOrder(order: {
   symbol: string;
   security_id?: string;
@@ -708,7 +726,10 @@ export async function placeTradeOrder(order: {
 }) {
   const res = await fetch(`${API_BASE}/trade/order`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getTradeAuthHeaders()
+    },
     body: JSON.stringify(order),
   });
   let data: any = null;
@@ -725,7 +746,9 @@ export async function placeTradeOrder(order: {
 }
 
 export async function fetchTradePositions() {
-  const res = await fetch(`${API_BASE}/trade/positions`);
+  const res = await fetch(`${API_BASE}/trade/positions`, {
+    headers: getTradeAuthHeaders()
+  });
   if (!res.ok) throw new Error("Failed to fetch open positions");
   return res.json();
 }
@@ -737,7 +760,10 @@ export async function squareOffTradePosition(data: {
 }) {
   const res = await fetch(`${API_BASE}/trade/squareoff`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getTradeAuthHeaders()
+    },
     body: JSON.stringify(data),
   });
   const resData = await res.json();
@@ -748,7 +774,9 @@ export async function squareOffTradePosition(data: {
 }
 
 export async function fetchTradeOrders() {
-  const res = await fetch(`${API_BASE}/trade/orders`);
+  const res = await fetch(`${API_BASE}/trade/orders`, {
+    headers: getTradeAuthHeaders()
+  });
   if (!res.ok) throw new Error("Failed to fetch orders");
   return res.json();
 }
@@ -756,7 +784,10 @@ export async function fetchTradeOrders() {
 export async function cancelTradeOrder(orderId: string) {
   const res = await fetch(`${API_BASE}/trade/order/cancel`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getTradeAuthHeaders()
+    },
     body: JSON.stringify({ order_id: orderId }),
   });
   const data = await res.json().catch(() => null);
@@ -767,7 +798,9 @@ export async function cancelTradeOrder(orderId: string) {
 }
 
 export async function fetchTradeHoldings() {
-  const res = await fetch(`${API_BASE}/trade/holdings`);
+  const res = await fetch(`${API_BASE}/trade/holdings`, {
+    headers: getTradeAuthHeaders()
+  });
   if (!res.ok) throw new Error("Failed to fetch holdings");
   return res.json();
 }

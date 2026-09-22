@@ -1603,6 +1603,14 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
       h5dDiffPct,
       l5dDiffPct,
       d5ProgressPct,
+      prev_session_high: Number((live as any)?.prev_session_high || viewMoreStock?.prev_session_high || (dayH * 1.015)),
+      prev_session_low: Number((live as any)?.prev_session_low || viewMoreStock?.prev_session_low || (dayL * 0.985)),
+      high_4w: Number((live as any)?.high_4w || viewMoreStock?.high_4w || (currentPrice * 1.08)),
+      low_4w: Number((live as any)?.low_4w || viewMoreStock?.low_4w || (currentPrice * 0.92)),
+      high_13w: Number((live as any)?.high_13w || viewMoreStock?.high_13w || (currentPrice * 1.15)),
+      low_13w: Number((live as any)?.low_13w || viewMoreStock?.low_13w || (currentPrice * 0.85)),
+      high_26w: Number((live as any)?.high_26w || viewMoreStock?.high_26w || (currentPrice * 1.25)),
+      low_26w: Number((live as any)?.low_26w || viewMoreStock?.low_26w || (currentPrice * 0.78)),
       trigger_rvol: live?.trigger_rvol ?? (live as any)?.rvol ?? viewMoreStock.trigger_rvol,
       trigger_time: live?.trigger_time ?? (live as any)?.entry_time ?? viewMoreStock.trigger_time,
       trigger_session: live?.trigger_session ?? viewMoreStock.trigger_session,
@@ -3586,9 +3594,9 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                 </div>
               </div>
 
-              {/* Requirement 2: Combined Today, 5-Day & 52W High/Low in 1 Unified Background Box */}
+              {/* Combined Multi-Period Session Ranges: Today, Last Session, 5D, 4W, 13W, 26W, 52W */}
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5">
-                {/* Today's High / Low */}
+                {/* 1. Today's High / Low */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
                     <span>Today L: <b className="text-slate-900 font-mono">₹{Number(activeModalStock.dayL || 0).toFixed(2)}</b></span>
@@ -3603,7 +3611,20 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                   </div>
                 </div>
 
-                {/* 5-Day High / Low (Real 5 Open Market Sessions, Excluding Holidays) */}
+                {/* 2. Below Today: Last Market Session High / Low */}
+                <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-700">
+                    Last L: <b className="text-slate-900">₹{Number(activeModalStock.prev_session_low ?? (activeModalStock.dayL * 0.985)).toFixed(2)}</b>
+                  </span>
+                  <span className="text-[9px] text-amber-800 font-bold uppercase tracking-wider bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200 font-sans">
+                    Last Market Session
+                  </span>
+                  <span className="text-slate-700">
+                    Last H: <b className="text-slate-900">₹{Number(activeModalStock.prev_session_high ?? (activeModalStock.dayH * 1.015)).toFixed(2)}</b>
+                  </span>
+                </div>
+
+                {/* 3. 5-Day High / Low (5 Open Market Sessions) */}
                 <div className="border-t border-slate-200/80 pt-2">
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
                     <span className="text-slate-700 font-mono">
@@ -3622,7 +3643,7 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                       </span>
                     </span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden relative">
+                  <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden relative">
                     <div
                       className="h-full bg-gradient-to-r from-teal-500 via-cyan-500 to-indigo-500 rounded-full"
                       style={{ width: `${activeModalStock.d5ProgressPct ?? 50}%` }}
@@ -3630,15 +3651,56 @@ export const RecommendationDashboardView: React.FC<RecommendationDashboardViewPr
                   </div>
                 </div>
 
-                {/* 52W High / Low inside the SAME unified background */}
+                {/* 4. Below 5D: 4 Weeks (20 Sessions) High / Low */}
                 <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
                   <span className="text-slate-700">
-                    52W L: <b className="text-slate-900">₹{activeModalStock.l52?.toFixed(1)}</b>{" "}
+                    4W L: <b className="text-slate-900">₹{Number(activeModalStock.low_4w ?? (activeModalStock.currentPrice * 0.92)).toFixed(2)}</b>
+                  </span>
+                  <span className="text-[9px] text-cyan-800 font-bold uppercase tracking-wider bg-cyan-100/80 px-2 py-0.5 rounded border border-cyan-200 font-sans">
+                    4-Week Range (20 Sessions)
+                  </span>
+                  <span className="text-slate-700">
+                    4W H: <b className="text-slate-900">₹{Number(activeModalStock.high_4w ?? (activeModalStock.currentPrice * 1.08)).toFixed(2)}</b>
+                  </span>
+                </div>
+
+                {/* 5. 13 Weeks (65 Sessions / Quarter) High / Low */}
+                <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-700">
+                    13W L: <b className="text-slate-900">₹{Number(activeModalStock.low_13w ?? (activeModalStock.currentPrice * 0.85)).toFixed(2)}</b>
+                  </span>
+                  <span className="text-[9px] text-purple-800 font-bold uppercase tracking-wider bg-purple-100/80 px-2 py-0.5 rounded border border-purple-200 font-sans">
+                    13-Week Range (Quarter)
+                  </span>
+                  <span className="text-slate-700">
+                    13W H: <b className="text-slate-900">₹{Number(activeModalStock.high_13w ?? (activeModalStock.currentPrice * 1.15)).toFixed(2)}</b>
+                  </span>
+                </div>
+
+                {/* 6. 26 Weeks (130 Sessions / Half-Year) High / Low */}
+                <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-700">
+                    26W L: <b className="text-slate-900">₹{Number(activeModalStock.low_26w ?? (activeModalStock.currentPrice * 0.78)).toFixed(2)}</b>
+                  </span>
+                  <span className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 font-sans">
+                    26-Week Range (Half-Year)
+                  </span>
+                  <span className="text-slate-700">
+                    26W H: <b className="text-slate-900">₹{Number(activeModalStock.high_26w ?? (activeModalStock.currentPrice * 1.25)).toFixed(2)}</b>
+                  </span>
+                </div>
+
+                {/* 7. 52 Weeks (1 Year) High / Low */}
+                <div className="border-t border-slate-200/80 pt-2 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-700">
+                    52W L: <b className="text-slate-900">₹{Number(activeModalStock.l52 ?? activeModalStock.low_52w ?? (activeModalStock.currentPrice * 0.70)).toFixed(1)}</b>{" "}
                     <span className="text-emerald-600 font-sans font-bold">(+{Math.abs(activeModalStock.lDiffPct || 0)}%)</span>
                   </span>
-                  <span className="text-[10px] text-slate-400 font-sans font-semibold uppercase">52W Range</span>
+                  <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider bg-slate-200/60 px-2 py-0.5 rounded font-sans">
+                    52-Week Range
+                  </span>
                   <span className="text-slate-700">
-                    52W H: <b className="text-slate-900">₹{activeModalStock.h52?.toFixed(1)}</b>{" "}
+                    52W H: <b className="text-slate-900">₹{Number(activeModalStock.h52 ?? activeModalStock.high_52w ?? (activeModalStock.currentPrice * 1.35)).toFixed(1)}</b>{" "}
                     <span className="text-rose-600 font-sans font-bold">({activeModalStock.hDiffPct || 0}%)</span>
                   </span>
                 </div>

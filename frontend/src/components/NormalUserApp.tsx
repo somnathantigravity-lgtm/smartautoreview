@@ -79,7 +79,7 @@ export function NormalUserApp() {
   // Market status
   const [isMarketOpen, setIsMarketOpen] = useState(false);
 
-  // Initialize session from localStorage
+  // Initialize session from localStorage & sync across tabs
   useEffect(() => {
     const savedToken = localStorage.getItem("apex_normal_token");
     const savedUser = localStorage.getItem("apex_normal_user");
@@ -111,6 +111,65 @@ export function NormalUserApp() {
           setUser(null);
         });
     }
+  }, []);
+
+  // 60-Minute Inactivity Auto-Logout & Multi-Tab Synchronization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ACTIVITY_KEY = "apex_last_activity_ts";
+    const MAX_INACTIVITY_MS = 60 * 60 * 1000; // 60 minutes
+
+    const markActivity = () => {
+      try {
+        localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+      } catch {}
+    };
+
+    markActivity();
+    const events = ["mousedown", "keydown", "scroll", "touchstart"];
+    events.forEach((ev) => window.addEventListener(ev, markActivity, { passive: true }));
+
+    // Storage event: sync login/logout state across multiple tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "apex_normal_token" || e.key === "apex_normal_user") {
+        const freshToken = localStorage.getItem("apex_normal_token");
+        const freshUser = localStorage.getItem("apex_normal_user");
+        setToken(freshToken);
+        if (freshUser) {
+          try {
+            setUser(JSON.parse(freshUser));
+          } catch {}
+        } else {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Inactivity watchdog
+    const interval = setInterval(() => {
+      try {
+        const lastStr = localStorage.getItem(ACTIVITY_KEY);
+        if (lastStr) {
+          const elapsed = Date.now() - parseInt(lastStr, 10);
+          if (elapsed > MAX_INACTIVITY_MS) {
+            localStorage.removeItem("apex_normal_token");
+            localStorage.removeItem("apex_normal_user");
+            localStorage.removeItem("apex_user");
+            localStorage.removeItem(ACTIVITY_KEY);
+            setToken(null);
+            setUser(null);
+            window.location.reload();
+          }
+        }
+      } catch {}
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach((ev) => window.removeEventListener(ev, markActivity));
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   // Load IP status

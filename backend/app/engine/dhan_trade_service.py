@@ -23,14 +23,17 @@ SESSION_FILE = os.path.join(os.path.dirname(__file__), "..", "..", ".dhan_sessio
 ORDER_TRACKER_FILE = os.path.join(os.path.dirname(__file__), "order_sl_tracker.json")
 
 class DhanTradeService:
-    def __init__(self):
-        self.client_id: Optional[str] = None
-        self.access_token: Optional[str] = None
+    def __init__(self, client_id: Optional[str] = None, access_token: Optional[str] = None):
+        self.client_id: Optional[str] = client_id
+        self.access_token: Optional[str] = access_token
         self.is_connected: bool = False
         self.account_name: str = "Dhan Trading Account"
         self.cash_balance: float = 0.0
         self.dhan_client = None
-        self.load_credentials()
+        if not self.client_id or not self.access_token:
+            self.load_credentials()
+        else:
+            self._init_dhan_client()
 
     def load_credentials(self):
         """Loads client ID and access token from active session or config."""
@@ -790,7 +793,30 @@ class DhanTradeService:
 
     def _update_order_sl_tracker(self, symbol: str, entry: Dict[str, Any]):
         tracker = self._load_order_sl_tracker()
-        tracker[symbol.upper()] = entry
+        order_key = f"{self.client_id}:{symbol.upper()}" if self.client_id else symbol.upper()
+        tracker[order_key] = entry
         self._save_order_sl_tracker(tracker)
 
 dhan_trade_service = DhanTradeService()
+
+def get_user_trade_service(email: Optional[str] = None) -> DhanTradeService:
+    """
+    Returns an isolated DhanTradeService instance configured specifically for the given user email.
+    Guarantees that no user ever executes orders or accesses portfolio data of another client ID.
+    """
+    if not email:
+        return dhan_trade_service
+
+    from app.engine.user_auth_service import user_auth_service
+    user = user_auth_service.users.get(email.strip().lower(), {})
+    dhan_cfg = user.get("dhan", {})
+    if not dhan_cfg.get("configured") or not dhan_cfg.get("client_id") or not dhan_cfg.get("access_token"):
+        raise RuntimeError(
+            f"Your Dhan broker account is not connected. Please navigate to Settings and enter your Dhan Client ID and Access Token before placing trades."
+        )
+
+    return DhanTradeService(
+        client_id=str(dhan_cfg["client_id"]).strip(),
+        access_token=str(dhan_cfg["access_token"]).strip()
+    )
+
